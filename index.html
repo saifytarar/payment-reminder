@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Payment Reminder System</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --primary:#4f46e5;--primary-dark:#3730a3;--primary-light:#eef2ff;
+  --success:#10b981;--warning:#f59e0b;--danger:#ef4444;--info:#3b82f6;
+  --bg:#f8fafc;--sidebar:#1e1b4b;--sidebar-text:#c7d2fe;
+  --card:#fff;--border:#e2e8f0;--text:#1e293b;--text-muted:#64748b;
+  --shadow:0 1px 3px rgba(0,0,0,.1),0 1px 2px rgba(0,0,0,.06);
+  --shadow-lg:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -2px rgba(0,0,0,.05);
+  --radius:10px;--transition:.15s ease;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+input,select,textarea,button{font-family:inherit;font-size:1rem}
+#login-page{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#4f46e5 0%,#1e1b4b 100%)}
+.login-card{background:#fff;border-radius:16px;padding:2.5rem;width:100%;max-width:400px;box-shadow:var(--shadow-lg)}
+.login-card h1{font-size:1.6rem;font-weight:700;color:var(--primary);margin-bottom:.25rem}
+.login-card>p{color:var(--text-muted);margin-bottom:1.75rem;font-size:.95rem}
+.login-logo{width:52px;height:52px;background:var(--primary);border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:1rem}
+#app{display:none;min-height:100vh}
+.layout{display:flex;min-height:100vh}
+.sidebar{width:240px;background:var(--sidebar);color:var(--sidebar-text);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;transition:transform var(--transition)}
+.sidebar-header{padding:1.25rem 1rem;border-bottom:1px solid rgba(255,255,255,.08)}
+.sidebar-header h2{font-size:1rem;font-weight:700;color:#fff;line-height:1.3}
+.sidebar-header span{font-size:.75rem;color:var(--sidebar-text);opacity:.7}
+.sidebar-nav{flex:1;padding:1rem 0;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:.75rem;padding:.65rem 1.25rem;cursor:pointer;transition:background var(--transition);color:var(--sidebar-text);font-size:.9rem;border-left:3px solid transparent}
+.nav-item:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav-item.active{background:rgba(79,70,229,.35);color:#fff;border-left-color:var(--primary)}
+.nav-item svg{width:18px;height:18px;flex-shrink:0;opacity:.85}
+.sidebar-footer{padding:1rem;border-top:1px solid rgba(255,255,255,.08)}
+.user-info{display:flex;align-items:center;gap:.65rem}
+.user-avatar{width:34px;height:34px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;color:#fff;flex-shrink:0}
+.main{margin-left:240px;flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:#fff;border-bottom:1px solid var(--border);padding:.85rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:var(--shadow)}
+.topbar-title{font-size:1.15rem;font-weight:600}
+.notif-btn{position:relative;background:none;border:none;cursor:pointer;padding:.4rem;border-radius:8px;color:var(--text-muted);transition:background var(--transition)}
+.notif-btn:hover{background:var(--bg)}
+.notif-badge{position:absolute;top:2px;right:2px;background:var(--danger);color:#fff;font-size:.6rem;font-weight:700;border-radius:99px;min-width:16px;height:16px;display:flex;align-items:center;justify-content:center;padding:0 3px}
+.content{flex:1;padding:1.5rem}
+.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);margin-bottom:1rem}
+.card-header{padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.card-header h3{font-size:1rem;font-weight:600}
+.card-body{padding:1.25rem}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem}
+.stat-card{background:var(--card);border-radius:var(--radius);padding:1.25rem;box-shadow:var(--shadow);border:1px solid var(--border);display:flex;align-items:center;gap:1rem}
+.stat-icon{width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.stat-value{font-size:1.7rem;font-weight:700;line-height:1;margin-bottom:.2rem}
+.stat-label{font-size:.8rem;color:var(--text-muted)}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.875rem}
+th{text-align:left;padding:.65rem 1rem;background:#f8fafc;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+td{padding:.65rem 1rem;border-bottom:1px solid var(--border)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafafa}
+.empty-row td{text-align:center;padding:2rem;color:var(--text-muted)}
+.badge{display:inline-flex;align-items:center;padding:.2rem .55rem;border-radius:99px;font-size:.73rem;font-weight:600;white-space:nowrap}
+.badge-paid{background:#d1fae5;color:#065f46}
+.badge-due_today{background:#fef3c7;color:#92400e}
+.badge-due_soon{background:#dbeafe;color:#1e40af}
+.badge-overdue{background:#fee2e2;color:#991b1b}
+.badge-reminder,.badge-due{background:#ede9fe;color:#5b21b6}
+.badge-payment_received{background:#d1fae5;color:#065f46}
+.badge-info{background:#dbeafe;color:#1e40af}
+.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;border-radius:8px;border:none;cursor:pointer;font-weight:500;font-size:.875rem;transition:all var(--transition);white-space:nowrap}
+.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:var(--primary-dark)}
+.btn-success{background:var(--success);color:#fff}.btn-success:hover{background:#059669}
+.btn-danger{background:var(--danger);color:#fff}.btn-danger:hover{background:#dc2626}
+.btn-ghost{background:transparent;color:var(--text-muted);border:1px solid var(--border)}.btn-ghost:hover{background:var(--bg);color:var(--text)}
+.btn-sm{padding:.3rem .65rem;font-size:.8rem}
+.btn-icon{padding:.35rem;border-radius:6px;background:none;border:none;cursor:pointer;color:var(--text-muted);transition:background var(--transition);display:inline-flex;align-items:center;justify-content:center}
+.btn-icon:hover{background:var(--bg);color:var(--text)}
+.btn-icon svg{width:16px;height:16px;display:block}
+.form-group{margin-bottom:1rem}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+label{display:block;font-size:.85rem;font-weight:500;color:var(--text);margin-bottom:.35rem}
+.req{color:var(--danger);margin-left:2px}
+input[type=text],input[type=email],input[type=number],input[type=password],input[type=date],select,textarea{width:100%;padding:.5rem .75rem;border:1px solid var(--border);border-radius:8px;font-size:.9rem;transition:border-color var(--transition),box-shadow var(--transition);background:#fff;color:var(--text)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+textarea{resize:vertical;min-height:75px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:flex;align-items:center;justify-content:center;padding:1rem;opacity:0;pointer-events:none;transition:opacity .2s}
+.modal-overlay.open{opacity:1;pointer-events:all}
+.modal{background:#fff;border-radius:14px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);transform:scale(.96);transition:transform .2s}
+.modal-overlay.open .modal{transform:scale(1)}
+.modal-header{padding:1.2rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1}
+.modal-header h3{font-size:1.05rem;font-weight:600}
+.modal-body{padding:1.5rem}
+.modal-footer{padding:1rem 1.5rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:.75rem;position:sticky;bottom:0;background:#fff}
+.search-bar{display:flex;align-items:center;gap:.5rem;background:#fff;border:1px solid var(--border);border-radius:8px;padding:.4rem .75rem}
+.search-bar input{border:none;outline:none;background:none;font-size:.875rem;width:200px}
+.filter-bar{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+.filter-bar select{width:auto;padding:.4rem .65rem;font-size:.85rem}
+.toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
+.cal-nav h3{font-size:1.05rem;font-weight:600}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.cal-day-name{background:#f8fafc;text-align:center;padding:.5rem;font-size:.73rem;font-weight:600;color:var(--text-muted);text-transform:uppercase}
+.cal-day{background:#fff;min-height:90px;padding:.4rem}
+.cal-day.other-month{background:#fafafa;opacity:.5}
+.cal-day.today{background:var(--primary-light)}
+.cal-day-num{font-size:.78rem;font-weight:600;color:var(--text-muted);margin-bottom:.25rem}
+.cal-day.today .cal-day-num{color:var(--primary)}
+.cal-event{font-size:.68rem;background:var(--primary-light);color:var(--primary-dark);border-radius:4px;padding:.1rem .3rem;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.cal-event.overdue{background:#fee2e2;color:#991b1b}
+.cal-event.due_soon,.cal-event.due_today{background:#fef3c7;color:#92400e}
+.notif-panel{position:fixed;top:0;right:0;width:360px;height:100vh;background:#fff;box-shadow:-4px 0 20px rgba(0,0,0,.1);z-index:200;transform:translateX(100%);transition:transform .2s;display:flex;flex-direction:column}
+.notif-panel.open{transform:translateX(0)}
+.notif-panel-header{padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.notif-panel-header h3{font-weight:600}
+.notif-list{flex:1;overflow-y:auto;padding:.5rem}
+.notif-item{padding:.85rem 1rem;border-radius:8px;margin-bottom:.25rem;border:1px solid transparent;cursor:pointer;transition:background .1s}
+.notif-item:hover{background:var(--bg)}
+.notif-item.unread{background:#f0f4ff;border-color:#c7d2fe}
+.notif-msg{font-size:.84rem;line-height:1.4;margin-bottom:.25rem}
+.notif-time{font-size:.73rem;color:var(--text-muted)}
+.alert{padding:.7rem 1rem;border-radius:8px;font-size:.875rem;margin-bottom:1rem}
+.alert-success{background:#d1fae5;color:#065f46;border:1px solid #a7f3d0}
+.alert-error{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
+.alert-info{background:#dbeafe;color:#1e40af;border:1px solid #93c5fd}
+.tabs{display:flex;gap:.25rem;border-bottom:2px solid var(--border);margin-bottom:1.25rem}
+.tab{padding:.55rem 1rem;border:none;background:none;cursor:pointer;font-size:.875rem;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;font-weight:500;transition:all .15s}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+.toggle{position:relative;display:inline-block;width:42px;height:24px;vertical-align:middle}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:#cbd5e1;border-radius:24px;transition:.2s;cursor:pointer}
+.toggle-slider:before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.toggle input:checked+.toggle-slider{background:var(--primary)}
+.toggle input:checked+.toggle-slider:before{transform:translateX(18px)}
+.page{display:none}.page.active{display:block}
+.hidden{display:none!important}
+.text-muted{color:var(--text-muted)}.text-sm{font-size:.85rem}
+.flex{display:flex}.items-center{align-items:center}.gap-2{gap:.5rem}.gap-3{gap:.75rem}.justify-between{justify-content:space-between}
+.w-full{width:100%}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}
+  .main{margin-left:0}.form-row,.two-col{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  #sidebar-toggle{display:flex!important}
+  .notif-panel{width:100%}
+}
+</style>
+</head>
+<body>
+
+<div id="login-page">
+  <div class="login-card">
+    <div class="login-logo">
+      <svg viewBox="0 0 24 24" fill="#fff" width="28" height="28"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
+    </div>
+    <h1>PayReminder</h1>
+    <p>Customer Payment Management System</p>
+    <div id="login-error" class="alert alert-error hidden"></div>
+    <form id="login-form">
+      <div class="form-group"><label>Username</label><input id="lu" type="text" placeholder="admin" required autocomplete="username"/></div>
+      <div class="form-group"><label>Password</label><input id="lp" type="password" placeholder="••••••••" required autocomplete="current-password"/></div>
+      <button type="submit" class="btn btn-primary w-full" style="justify-content:center;padding:.7rem;margin-top:.5rem">Sign In</button>
+    </form>
+    <p class="text-sm text-muted" style="text-align:center;margin-top:1rem">Default: <strong>admin</strong> / <strong>admin123</strong></p>
+  </div>
+</div>
+
+<div id="app">
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header"><h2>💳 PayReminder</h2><span>Payment Manager</span></div>
+    <nav class="sidebar-nav" id="sidebar-nav">
+      <div class="nav-item active" data-page="dashboard"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>Dashboard</div>
+      <div class="nav-item" data-page="customers"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>Customers</div>
+      <div class="nav-item" data-page="payments"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>Payments</div>
+      <div class="nav-item" data-page="calendar"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>Calendar</div>
+      <div class="nav-item" data-page="settings"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>Settings</div>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info">
+        <div class="user-avatar" id="user-avatar">A</div>
+        <div style="min-width:0"><div id="user-name" style="font-size:.85rem;color:#fff;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Admin</div><div id="user-email" style="font-size:.7rem;color:rgba(255,255,255,.45);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">admin@example.com</div></div>
+        <button class="btn-icon" onclick="logout()" title="Logout" style="margin-left:auto;color:rgba(255,255,255,.5)"><svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg></button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="flex items-center gap-3">
+        <button class="btn-icon" id="sidebar-toggle" style="display:none" onclick="document.getElementById('sidebar').classList.toggle('open')"><svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg></button>
+        <span class="topbar-title" id="page-title">Dashboard</span>
+      </div>
+      <button class="notif-btn" onclick="toggleNotifPanel()" title="Notifications">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
+        <span class="notif-badge hidden" id="notif-badge">0</span>
+      </button>
+    </header>
+
+    <div class="content">
+      <!-- DASHBOARD -->
+      <section class="page active" id="page-dashboard">
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-icon" style="background:#ede9fe"><svg viewBox="0 0 24 24" fill="#7c3aed" width="24" height="24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg></div><div><div class="stat-value" id="stat-customers">—</div><div class="stat-label">Total Customers</div></div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:#fef3c7"><svg viewBox="0 0 24 24" fill="#d97706" width="24" height="24"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg></div><div><div class="stat-value" id="stat-today">—</div><div class="stat-label">Due Today</div></div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:#dbeafe"><svg viewBox="0 0 24 24" fill="#2563eb" width="24" height="24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg></div><div><div class="stat-value" id="stat-week">—</div><div class="stat-label">Due This Week</div></div></div>
+          <div class="stat-card"><div class="stat-icon" style="background:#fee2e2"><svg viewBox="0 0 24 24" fill="#dc2626" width="24" height="24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div><div><div class="stat-value" id="stat-overdue">—</div><div class="stat-label">Overdue</div></div></div>
+        </div>
+        <div class="two-col">
+          <div class="card"><div class="card-header"><h3>📅 Upcoming Payments</h3><button class="btn btn-sm btn-ghost" onclick="navigate('payments')">View All</button></div><div class="table-wrap"><table><thead><tr><th>Customer</th><th>Amount</th><th>Due</th><th>Status</th></tr></thead><tbody id="dash-upcoming"></tbody></table></div></div>
+          <div class="card"><div class="card-header"><h3>🔴 Overdue Payments</h3></div><div class="table-wrap"><table><thead><tr><th>Customer</th><th>Amount</th><th>Due</th><th></th></tr></thead><tbody id="dash-overdue"></tbody></table></div></div>
+        </div>
+      </section>
+
+      <!-- CUSTOMERS -->
+      <section class="page" id="page-customers">
+        <div class="toolbar">
+          <div class="search-bar"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="color:var(--text-muted)"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg><input id="cust-search" type="text" placeholder="Search by name, company, phone…" oninput="loadCustomers()"/></div>
+          <button class="btn btn-primary" onclick="openCustomerModal()"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>Add Customer</button>
+        </div>
+        <div class="card"><div class="table-wrap"><table><thead><tr><th>#</th><th>Customer</th><th>Company</th><th>Phone</th><th>Email</th><th>Next Due</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody id="cust-tbody"><tr class="empty-row"><td colspan="9">Loading…</td></tr></tbody></table></div></div>
+      </section>
+
+      <!-- PAYMENTS -->
+      <section class="page" id="page-payments">
+        <div class="toolbar">
+          <div class="filter-bar">
+            <select id="flt-status" onchange="loadPayments()"><option value="">All Statuses</option><option value="paid">Paid</option><option value="due_today">Due Today</option><option value="due_soon">Due Soon</option><option value="overdue">Overdue</option></select>
+            <select id="flt-freq" onchange="loadPayments()"><option value="">All Frequencies</option><option value="monthly">Monthly</option><option value="bimonthly">Every 2 Months</option><option value="every4months">Every 4 Months</option><option value="every6months">Every 6 Months</option><option value="yearly">Yearly</option><option value="custom_days">Custom Days</option><option value="custom_months">Custom Months</option></select>
+          </div>
+          <button class="btn btn-primary" onclick="openPaymentModal()"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>Add Payment</button>
+        </div>
+        <div class="card"><div class="table-wrap"><table><thead><tr><th>Customer</th><th>Phone</th><th>Amount</th><th>Last Paid</th><th>Frequency</th><th>Next Due</th><th>Status</th><th>Actions</th></tr></thead><tbody id="pay-tbody"><tr class="empty-row"><td colspan="8">Loading…</td></tr></tbody></table></div></div>
+      </section>
+
+      <!-- CALENDAR -->
+      <section class="page" id="page-calendar">
+        <div class="card"><div class="card-body">
+          <div class="cal-nav"><button class="btn btn-ghost btn-sm" onclick="calPrev()">← Prev</button><h3 id="cal-label"></h3><button class="btn btn-ghost btn-sm" onclick="calNext()">Next →</button></div>
+          <div class="cal-grid" id="cal-grid"></div>
+          <div id="cal-detail" style="margin-top:1rem"></div>
+        </div></div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section class="page" id="page-settings">
+        <div style="max-width:640px">
+          <div class="tabs">
+            <button class="tab active" data-stab="general">General</button>
+            <button class="tab" data-stab="email">Email & Reminders</button>
+            <button class="tab" data-stab="account">Account</button>
+          </div>
+          <div id="stab-general">
+            <div class="card"><div class="card-header"><h3>Reminder Timing</h3></div><div class="card-body">
+              <div id="msg-general"></div>
+              <div class="form-row"><div class="form-group"><label>First reminder (days before due)</label><input type="number" id="s-r1" min="1" max="60"/></div><div class="form-group"><label>Second reminder (days before due)</label><input type="number" id="s-r2" min="1" max="60"/></div></div>
+              <div class="flex gap-2"><button class="btn btn-primary" onclick="saveGeneralSettings()">Save Settings</button><button class="btn btn-ghost" onclick="triggerReminders()">Trigger Reminders Now</button></div>
+            </div></div>
+          </div>
+          <div id="stab-email" class="hidden">
+            <div class="card"><div class="card-header"><h3>Email Notifications</h3></div><div class="card-body">
+              <div id="msg-email"></div>
+              <div class="form-group flex items-center gap-2"><label class="toggle"><input type="checkbox" id="s-email-on" onchange="onToggleEmail()"/><span class="toggle-slider"></span></label><span style="font-size:.9rem">Enable email reminders</span></div>
+              <div id="email-fields" style="opacity:.5;pointer-events:none">
+                <p class="text-sm text-muted" style="margin-bottom:1rem;padding:.75rem;background:#fffbeb;border-radius:8px;border:1px solid #fde68a">💡 <strong>Gmail users:</strong> Use an App Password (not your regular password). Go to <strong>myaccount.google.com → Security → App Passwords</strong>. Host: smtp.gmail.com, Port: 587.</p>
+                <div class="form-row"><div class="form-group"><label>SMTP Host</label><input type="text" id="s-smtp-host" placeholder="smtp.gmail.com"/></div><div class="form-group"><label>SMTP Port</label><input type="number" id="s-smtp-port" placeholder="587"/></div></div>
+                <div class="form-row"><div class="form-group"><label>Your Gmail Address</label><input type="email" id="s-smtp-user" placeholder="you@gmail.com"/></div><div class="form-group"><label>App Password</label><input type="password" id="s-smtp-pass" placeholder="Leave blank to keep current"/></div></div>
+                <div class="form-row"><div class="form-group"><label>Your Name</label><input type="text" id="s-owner-name" placeholder="Business Owner"/></div><div class="form-group"><label>Send reminders to (your email)</label><input type="email" id="s-owner-email" placeholder="you@gmail.com"/></div></div>
+              </div>
+              <div class="flex gap-2" style="margin-top:.5rem"><button class="btn btn-primary" onclick="saveEmailSettings()">Save Email Settings</button><button class="btn btn-ghost" onclick="testEmail()">Send Test Email</button></div>
+            </div></div>
+          </div>
+          <div id="stab-account" class="hidden">
+            <div class="card" style="margin-bottom:1rem"><div class="card-header"><h3>Profile</h3></div><div class="card-body">
+              <div id="msg-profile"></div>
+              <div class="form-row"><div class="form-group"><label>Display Name</label><input type="text" id="s-name"/></div><div class="form-group"><label>Email</label><input type="email" id="s-acc-email"/></div></div>
+              <button class="btn btn-primary" onclick="saveProfile()">Update Profile</button>
+            </div></div>
+            <div class="card"><div class="card-header"><h3>Change Password</h3></div><div class="card-body">
+              <div id="msg-pwd"></div>
+              <div class="form-group"><label>Current Password</label><input type="password" id="s-cur-pwd"/></div>
+              <div class="form-row"><div class="form-group"><label>New Password</label><input type="password" id="s-new-pwd"/></div><div class="form-group"><label>Confirm New Password</label><input type="password" id="s-cnf-pwd"/></div></div>
+              <button class="btn btn-primary" onclick="changePassword()">Change Password</button>
+            </div></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<div class="notif-panel" id="notif-panel">
+  <div class="notif-panel-header"><h3>🔔 Notifications</h3><div class="flex gap-2"><button class="btn btn-sm btn-ghost" onclick="markAllRead()">Mark all read</button><button class="btn-icon" onclick="toggleNotifPanel()"><svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div></div>
+  <div class="notif-list" id="notif-list"><p class="text-muted text-sm" style="padding:1rem;text-align:center">No notifications</p></div>
+</div>
+<div id="notif-backdrop" onclick="toggleNotifPanel()" style="display:none;position:fixed;inset:0;z-index:199;background:rgba(0,0,0,.15)"></div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="modal-customer">
+  <div class="modal">
+    <div class="modal-header"><h3 id="cust-modal-title">Add Customer</h3><button class="btn-icon" onclick="closeModal('modal-customer')"><svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div>
+    <div class="modal-body">
+      <div id="cust-err" class="alert alert-error hidden"></div>
+      <input type="hidden" id="cust-id"/>
+      <div class="form-row"><div class="form-group"><label>Full Name <span class="req">*</span></label><input type="text" id="c-name" placeholder="e.g. Ahmed Khan"/></div><div class="form-group"><label>Company / Business Name</label><input type="text" id="c-company" placeholder="Optional"/></div></div>
+      <div class="form-row"><div class="form-group"><label>Phone Number</label><input type="text" id="c-phone" placeholder="+92 300 1234567"/></div><div class="form-group"><label>Email Address</label><input type="email" id="c-email" placeholder="customer@email.com"/></div></div>
+      <div class="form-group"><label>Address</label><input type="text" id="c-address" placeholder="Optional"/></div>
+      <div class="form-group"><label>Notes</label><textarea id="c-notes" placeholder="Any additional notes…"></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-customer')">Cancel</button><button class="btn btn-primary" onclick="saveCustomer()">Save Customer</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-payment">
+  <div class="modal">
+    <div class="modal-header"><h3 id="pay-modal-title">Add Payment</h3><button class="btn-icon" onclick="closeModal('modal-payment')"><svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div>
+    <div class="modal-body">
+      <div id="pay-err" class="alert alert-error hidden"></div>
+      <input type="hidden" id="pay-id"/>
+      <div class="form-row"><div class="form-group"><label>Customer <span class="req">*</span></label><select id="p-cust"><option value="">Select customer…</option></select></div><div class="form-group"><label>Amount ($) <span class="req">*</span></label><input type="number" id="p-amount" min="0" step="0.01" placeholder="0.00"/></div></div>
+      <div class="form-row"><div class="form-group"><label>Payment Date <span class="req">*</span></label><input type="date" id="p-date"/></div><div class="form-group"><label>Payment Frequency <span class="req">*</span></label><select id="p-freq" onchange="onFreqChange()"><option value="monthly">Monthly (every 1 month)</option><option value="bimonthly">Every 2 Months</option><option value="every4months">Every 4 Months</option><option value="every6months">Every 6 Months</option><option value="yearly">Yearly (every 12 months)</option><option value="custom_days">Custom – Days</option><option value="custom_months">Custom – Months</option></select></div></div>
+      <div class="form-group hidden" id="custom-freq-wrap"><label>Custom Interval <span class="req">*</span></label><input type="number" id="p-freq-val" min="1" placeholder="e.g. 45 days or 3 months"/></div>
+      <div class="form-group"><label>Notes</label><textarea id="p-notes" placeholder="Optional notes…"></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-payment')">Cancel</button><button class="btn btn-primary" onclick="savePayment()">Save Payment</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-cust-detail">
+  <div class="modal" style="max-width:680px">
+    <div class="modal-header"><h3 id="cd-name">Customer</h3><button class="btn-icon" onclick="closeModal('modal-cust-detail')"><svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div>
+    <div class="modal-body">
+      <div class="tabs"><button class="tab active" data-cdtab="info">Contact Info</button><button class="tab" data-cdtab="payments">Payment History</button></div>
+      <div id="cdtab-info"><div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;font-size:.875rem"><div><span class="text-muted">Company:</span> <strong id="cd-company">—</strong></div><div><span class="text-muted">Phone:</span> <strong id="cd-phone">—</strong></div><div><span class="text-muted">Email:</span> <strong id="cd-email">—</strong></div><div><span class="text-muted">Address:</span> <strong id="cd-address">—</strong></div></div><div id="cd-notes-wrap" class="hidden" style="margin-top:.75rem;font-size:.875rem"><span class="text-muted">Notes:</span> <span id="cd-notes"></span></div></div>
+      <div id="cdtab-payments" class="hidden"><div class="table-wrap"><table><thead><tr><th>Amount</th><th>Last Paid</th><th>Frequency</th><th>Next Due</th><th>Status</th></tr></thead><tbody id="cd-pay-tbody"></tbody></table></div><div style="margin-top:.75rem"><button class="btn btn-primary btn-sm" id="cd-add-pay-btn">+ Add Payment</button></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-confirm">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header"><h3>Confirm Delete</h3></div>
+    <div class="modal-body"><p id="confirm-text">Are you sure?</p></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-confirm')">Cancel</button><button class="btn btn-danger" id="confirm-ok">Delete</button></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+let TOKEN = localStorage.getItem('pr_token') || '';
+let ME = null;
+let calYear = new Date().getFullYear(), calMonth = new Date().getMonth();
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const $ = id => document.getElementById(id);
+async function api(method, path, data){
+  const r = await fetch('/api'+path,{method,headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN},body:data?JSON.stringify(data):undefined});
+  const json = await r.json();
+  if(!r.ok) throw new Error(json.error||'Server error');
+  return json;
+}
+function fmtDate(d){if(!d)return '—';return new Date(d+'T00:00:00').toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'});}
+function fmtAmt(a){return '$'+Number(a||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function fmtFreq(f,v){const m={monthly:'Monthly',bimonthly:'Every 2 Months',every4months:'Every 4 Months',every6months:'Every 6 Months',yearly:'Yearly',custom_days:`Every ${v} Days`,custom_months:`Every ${v} Months`};return m[f]||f;}
+function badge(s){const lbl={paid:'Paid',due_today:'Due Today',due_soon:'Due Soon',overdue:'Overdue',reminder:'Reminder',payment_received:'Received',due:'Due',info:'Info'};return `<span class="badge badge-${s}">${lbl[s]||s}</span>`;}
+function flash(id,msg,type='success'){const el=$(id);if(!el)return;el.className=`alert alert-${type}`;el.textContent=msg;el.classList.remove('hidden');setTimeout(()=>el.classList.add('hidden'),4000);}
+function openModal(id){$(id).classList.add('open');}
+function closeModal(id){$(id).classList.remove('open');}
+function timeAgo(d){const s=(Date.now()-new Date(d))/1000;if(s<60)return 'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
+function esc(s){if(!s)return '';const d=document.createElement('div');d.textContent=String(s);return d.innerHTML;}
+$('login-form').addEventListener('submit',async e=>{
+  e.preventDefault();
+  try{const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:$('lu').value,password:$('lp').value})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Login failed');TOKEN=d.token;ME=d.user;localStorage.setItem('pr_token',TOKEN);bootApp();}
+  catch(e){$('login-error').textContent=e.message;$('login-error').classList.remove('hidden');}
+});
+function logout(){TOKEN='';ME=null;localStorage.removeItem('pr_token');$('app').style.display='none';$('login-page').style.display='flex';}
+async function bootApp(){
+  try{ME=await api('GET','/auth/me');$('user-name').textContent=ME.name;$('user-email').textContent=ME.email;$('user-avatar').textContent=ME.name[0].toUpperCase();$('s-name').value=ME.name;$('s-acc-email').value=ME.email;$('login-page').style.display='none';$('app').style.display='block';navigate('dashboard');loadNotifBadge();setInterval(loadNotifBadge,30000);}
+  catch{logout();}
+}
+function navigate(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  $('page-'+page).classList.add('active');
+  document.querySelector(`[data-page="${page}"]`).classList.add('active');
+  $('page-title').textContent={dashboard:'Dashboard',customers:'Customers',payments:'Payments',calendar:'Calendar',settings:'Settings'}[page]||page;
+  ({dashboard:loadDashboard,customers:loadCustomers,payments:loadPayments,calendar:renderCalendar,settings:loadSettings})[page]?.();
+}
+$('sidebar-nav').addEventListener('click',e=>{const item=e.target.closest('[data-page]');if(item)navigate(item.dataset.page);});
+document.querySelectorAll('[data-stab]').forEach(btn=>btn.addEventListener('click',function(){document.querySelectorAll('[data-stab]').forEach(b=>b.classList.remove('active'));['general','email','account'].forEach(t=>$('stab-'+t).classList.add('hidden'));this.classList.add('active');$('stab-'+this.dataset.stab).classList.remove('hidden');}));
+document.querySelectorAll('[data-cdtab]').forEach(btn=>btn.addEventListener('click',function(){document.querySelectorAll('[data-cdtab]').forEach(b=>b.classList.remove('active'));['info','payments'].forEach(t=>$('cdtab-'+t).classList.add('hidden'));this.classList.add('active');$('cdtab-'+this.dataset.cdtab).classList.remove('hidden');}));
+async function loadDashboard(){
+  const d=await api('GET','/dashboard');
+  $('stat-customers').textContent=d.stats.total_customers;$('stat-today').textContent=d.stats.due_today;$('stat-week').textContent=d.stats.due_in_7;$('stat-overdue').textContent=d.stats.overdue;
+  $('dash-upcoming').innerHTML=d.upcoming.length?d.upcoming.slice(0,8).map(p=>`<tr><td><strong>${esc(p.customer_name)}</strong><br><small class="text-muted">${esc(p.company||'')}</small></td><td>${fmtAmt(p.amount)}</td><td>${fmtDate(p.next_due_date)}</td><td>${badge(p.status)}</td></tr>`).join(''):`<tr class="empty-row"><td colspan="4">No upcoming payments 🎉</td></tr>`;
+  $('dash-overdue').innerHTML=d.overdue.length?d.overdue.map(p=>`<tr><td><strong>${esc(p.customer_name)}</strong></td><td>${fmtAmt(p.amount)}</td><td>${fmtDate(p.next_due_date)}</td><td><button class="btn btn-sm btn-success" onclick="markPaid(${p.id})">Mark Paid</button></td></tr>`).join(''):`<tr class="empty-row"><td colspan="4">No overdue payments 🎉</td></tr>`;
+}
+async function loadCustomers(){
+  const q=$('cust-search').value.trim();
+  const list=await api('GET','/customers'+(q?'?search='+encodeURIComponent(q):''));
+  $('cust-tbody').innerHTML=list.length?list.map((c,i)=>`<tr><td>${i+1}</td><td><a href="#" onclick="viewCustomer(${c.id});return false" style="color:var(--primary);font-weight:600">${esc(c.name)}</a></td><td>${esc(c.company)||'—'}</td><td>${esc(c.phone)||'—'}</td><td>${esc(c.email)||'—'}</td><td>${fmtDate(c.next_due_date)}</td><td>${c.next_amount?fmtAmt(c.next_amount):'—'}</td><td>${c.payment_status?badge(c.payment_status):'—'}</td><td style="white-space:nowrap"><button class="btn-icon" title="View" onclick="viewCustomer(${c.id})">${ico('eye')}</button><button class="btn-icon" title="Edit" onclick="openCustomerModal(${c.id})">${ico('edit')}</button><button class="btn-icon" title="Add Payment" onclick="openPaymentModal(null,${c.id})">${ico('add-circle')}</button><button class="btn-icon" title="Delete" style="color:var(--danger)" onclick="confirmDel('customer',${c.id},'${esc(c.name)}')">${ico('delete')}</button></td></tr>`).join(''):`<tr class="empty-row"><td colspan="9">No customers found. Click "Add Customer" to get started!</td></tr>`;
+}
+async function openCustomerModal(id=null){
+  $('cust-modal-title').textContent=id?'Edit Customer':'Add Customer';$('cust-id').value=id||'';$('cust-err').classList.add('hidden');
+  ['c-name','c-company','c-phone','c-email','c-address','c-notes'].forEach(f=>$(f).value='');
+  if(id){const c=await api('GET','/customers/'+id);$('c-name').value=c.name||'';$('c-company').value=c.company||'';$('c-phone').value=c.phone||'';$('c-email').value=c.email||'';$('c-address').value=c.address||'';$('c-notes').value=c.notes||'';}
+  openModal('modal-customer');
+}
+async function saveCustomer(){
+  const id=$('cust-id').value;
+  const body={name:$('c-name').value.trim(),company:$('c-company').value.trim(),phone:$('c-phone').value.trim(),email:$('c-email').value.trim(),address:$('c-address').value.trim(),notes:$('c-notes').value.trim()};
+  if(!body.name){flash('cust-err','Name is required','error');return;}
+  try{if(id)await api('PUT','/customers/'+id,body);else await api('POST','/customers',body);closeModal('modal-customer');loadCustomers();}
+  catch(e){flash('cust-err',e.message,'error');}
+}
+async function viewCustomer(id){
+  const c=await api('GET','/customers/'+id);
+  $('cd-name').textContent=c.name;$('cd-company').textContent=c.company||'—';$('cd-phone').textContent=c.phone||'—';$('cd-email').textContent=c.email||'—';$('cd-address').textContent=c.address||'—';$('cd-notes').textContent=c.notes||'';$('cd-notes-wrap').classList.toggle('hidden',!c.notes);
+  document.querySelectorAll('[data-cdtab]').forEach(b=>b.classList.remove('active'));['info','payments'].forEach(t=>$('cdtab-'+t).classList.add('hidden'));document.querySelector('[data-cdtab="info"]').classList.add('active');$('cdtab-info').classList.remove('hidden');
+  $('cd-pay-tbody').innerHTML=c.payments?.length?c.payments.map(p=>`<tr><td>${fmtAmt(p.amount)}</td><td>${fmtDate(p.payment_date)}</td><td>${fmtFreq(p.frequency,p.frequency_value)}</td><td>${fmtDate(p.next_due_date)}</td><td>${badge(p.status)}</td></tr>`).join(''):`<tr class="empty-row"><td colspan="5">No payments yet</td></tr>`;
+  $('cd-add-pay-btn').onclick=()=>{closeModal('modal-cust-detail');openPaymentModal(null,id);};
+  openModal('modal-cust-detail');
+}
+async function loadPayments(){
+  let url='/payments?';const s=$('flt-status').value,f=$('flt-freq').value;if(s)url+=`status=${s}&`;if(f)url+=`frequency=${f}&`;
+  const list=await api('GET',url);
+  $('pay-tbody').innerHTML=list.length?list.map(p=>`<tr><td><strong>${esc(p.customer_name)}</strong><br><small class="text-muted">${esc(p.customer_company||'')}</small></td><td>${esc(p.customer_phone)||'—'}</td><td>${fmtAmt(p.amount)}</td><td>${fmtDate(p.payment_date)}</td><td>${fmtFreq(p.frequency,p.frequency_value)}</td><td>${fmtDate(p.next_due_date)}</td><td>${badge(p.status)}</td><td style="white-space:nowrap">${p.status!=='paid'?`<button class="btn btn-sm btn-success" onclick="markPaid(${p.id})" style="margin-right:.25rem">✓ Paid</button>`:''}<button class="btn-icon" title="Edit" onclick="openPaymentModal(${p.id})">${ico('edit')}</button><button class="btn-icon" title="Delete" style="color:var(--danger)" onclick="confirmDel('payment',${p.id},'this payment')">${ico('delete')}</button></td></tr>`).join(''):`<tr class="empty-row"><td colspan="8">No payments found.</td></tr>`;
+}
+async function openPaymentModal(id=null,custId=null){
+  $('pay-modal-title').textContent=id?'Edit Payment':'Add Payment';$('pay-id').value=id||'';$('pay-err').classList.add('hidden');
+  $('p-date').value=new Date().toISOString().split('T')[0];$('p-amount').value=$('p-notes').value='';$('p-freq').value='monthly';$('p-freq-val').value='';onFreqChange();
+  const custs=await api('GET','/customers');
+  $('p-cust').innerHTML='<option value="">Select customer…</option>'+custs.map(c=>`<option value="${c.id}">${esc(c.name)}${c.company?' ('+esc(c.company)+')':''}</option>`).join('');
+  if(custId)$('p-cust').value=custId;
+  if(id){const p=await api('GET','/payments/'+id);$('p-cust').value=p.customer_id;$('p-amount').value=p.amount;$('p-date').value=p.payment_date;$('p-freq').value=p.frequency;$('p-freq-val').value=p.frequency_value||'';$('p-notes').value=p.notes||'';onFreqChange();}
+  openModal('modal-payment');
+}
+function onFreqChange(){const f=$('p-freq').value;$('custom-freq-wrap').classList.toggle('hidden',f!=='custom_days'&&f!=='custom_months');}
+async function savePayment(){
+  const id=$('pay-id').value;
+  const body={customer_id:$('p-cust').value,amount:$('p-amount').value,payment_date:$('p-date').value,frequency:$('p-freq').value,frequency_value:parseInt($('p-freq-val').value)||1,notes:$('p-notes').value.trim()};
+  if(!body.customer_id||!body.amount||!body.payment_date){flash('pay-err','Please fill all required fields','error');return;}
+  try{if(id)await api('PUT','/payments/'+id,body);else await api('POST','/payments',body);closeModal('modal-payment');loadPayments();loadDashboard();}
+  catch(e){flash('pay-err',e.message,'error');}
+}
+async function markPaid(id){await api('POST','/payments/'+id+'/mark-paid');loadDashboard();loadPayments();loadNotifBadge();}
+function confirmDel(type,id,label){
+  $('confirm-text').textContent=`Delete ${label}? This action cannot be undone.`;
+  $('confirm-ok').onclick=async()=>{await api('DELETE',`/${type==='customer'?'customers':'payments'}/${id}`);closeModal('modal-confirm');if(type==='customer')loadCustomers();else loadPayments();};
+  openModal('modal-confirm');
+}
+async function renderCalendar(){
+  const pad=n=>String(n).padStart(2,'0');const first=new Date(calYear,calMonth,1),last=new Date(calYear,calMonth+1,0);
+  $('cal-label').textContent=`${MONTHS[calMonth]} ${calYear}`;
+  const start=`${calYear}-${pad(calMonth+1)}-01`,end=`${calYear}-${pad(calMonth+1)}-${pad(last.getDate())}`;
+  const events=await api('GET',`/calendar?start=${start}&end=${end}`);
+  const today=new Date().toISOString().split('T')[0];
+  const grid=$('cal-grid');grid.innerHTML='';
+  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d=>{const h=document.createElement('div');h.className='cal-day-name';h.textContent=d;grid.appendChild(h);});
+  for(let i=0;i<first.getDay();i++){const d=document.createElement('div');d.className='cal-day other-month';grid.appendChild(d);}
+  for(let d=1;d<=last.getDate();d++){
+    const ds=`${calYear}-${pad(calMonth+1)}-${pad(d)}`;const cell=document.createElement('div');cell.className='cal-day'+(ds===today?' today':'');
+    const num=document.createElement('div');num.className='cal-day-num';num.textContent=d;cell.appendChild(num);
+    events.filter(e=>e.next_due_date===ds).forEach(e=>{const ev=document.createElement('div');ev.className=`cal-event ${e.status}`;ev.title=`${e.customer_name} – ${fmtAmt(e.amount)}`;ev.textContent=e.customer_name;ev.onclick=()=>{$('cal-detail').innerHTML=`<div class="alert alert-info"><strong>${esc(e.customer_name)}</strong> — ${fmtAmt(e.amount)} due ${fmtDate(e.next_due_date)} ${badge(e.status)} (${fmtFreq(e.frequency,1)})</div>`;};cell.appendChild(ev);});
+    grid.appendChild(cell);
+  }
+}
+function calPrev(){if(--calMonth<0){calMonth=11;calYear--;}renderCalendar();}
+function calNext(){if(++calMonth>11){calMonth=0;calYear++;}renderCalendar();}
+async function loadNotifBadge(){const d=await api('GET','/notifications');const b=$('notif-badge');if(d.unread>0){b.textContent=d.unread;b.classList.remove('hidden');}else b.classList.add('hidden');}
+async function loadNotifications(){
+  const d=await api('GET','/notifications');const b=$('notif-badge');if(d.unread>0){b.textContent=d.unread;b.classList.remove('hidden');}else b.classList.add('hidden');
+  $('notif-list').innerHTML=d.notifications.length?d.notifications.map(n=>`<div class="notif-item${n.is_read?'':' unread'}" onclick="readNotif(${n.id},this)"><div class="notif-msg">${badge(n.type)} ${esc(n.message)}</div><div class="notif-time">${timeAgo(n.created_at)}</div></div>`).join(''):`<p class="text-muted text-sm" style="padding:1rem;text-align:center">No notifications</p>`;
+}
+function readNotif(id,el){api('PUT','/notifications/'+id+'/read');el.classList.remove('unread');loadNotifBadge();}
+function markAllRead(){api('PUT','/notifications/read-all').then(loadNotifications);}
+function toggleNotifPanel(){$('notif-panel').classList.toggle('open');const open=$('notif-panel').classList.contains('open');$('notif-backdrop').style.display=open?'block':'none';if(open)loadNotifications();}
+async function loadSettings(){
+  const s=await api('GET','/settings');$('s-r1').value=s.reminder_days_before||'7';$('s-r2').value=s.reminder_days_before_2||'1';$('s-email-on').checked=s.email_enabled==='true';$('s-smtp-host').value=s.smtp_host||'';$('s-smtp-port').value=s.smtp_port||'587';$('s-smtp-user').value=s.smtp_user||'';$('s-owner-name').value=s.owner_name||'';$('s-owner-email').value=s.owner_email||'';onToggleEmail();
+}
+function onToggleEmail(){const on=$('s-email-on').checked;$('email-fields').style.opacity=on?'1':'.5';$('email-fields').style.pointerEvents=on?'all':'none';}
+async function saveGeneralSettings(){await api('PUT','/settings',{reminder_days_before:$('s-r1').value,reminder_days_before_2:$('s-r2').value});flash('msg-general','Settings saved!');}
+async function saveEmailSettings(){const body={email_enabled:$('s-email-on').checked?'true':'false',smtp_host:$('s-smtp-host').value,smtp_port:$('s-smtp-port').value,smtp_user:$('s-smtp-user').value,owner_name:$('s-owner-name').value,owner_email:$('s-owner-email').value};if($('s-smtp-pass').value)body.smtp_pass=$('s-smtp-pass').value;await api('PUT','/settings',body);flash('msg-email','Email settings saved!');}
+async function testEmail(){try{await api('POST','/settings/test-email');flash('msg-email','Test email sent! Check your inbox.');}catch(e){flash('msg-email',e.message,'error');}}
+async function triggerReminders(){const r=await api('POST','/reminders/trigger');flash('msg-general',`Done! ${r.reminders_created} reminder notification(s) created.`);loadNotifBadge();}
+async function saveProfile(){try{await api('PUT','/auth/profile',{name:$('s-name').value,email:$('s-acc-email').value});ME.name=$('s-name').value;ME.email=$('s-acc-email').value;$('user-name').textContent=ME.name;$('user-email').textContent=ME.email;$('user-avatar').textContent=ME.name[0].toUpperCase();flash('msg-profile','Profile updated!');}catch(e){flash('msg-profile',e.message,'error');}}
+async function changePassword(){const np=$('s-new-pwd').value,cp=$('s-cnf-pwd').value;if(np!==cp){flash('msg-pwd','Passwords do not match','error');return;}try{await api('PUT','/auth/password',{current:$('s-cur-pwd').value,newPassword:np});$('s-cur-pwd').value=$('s-new-pwd').value=$('s-cnf-pwd').value='';flash('msg-pwd','Password changed successfully!');}catch(e){flash('msg-pwd',e.message,'error');}}
+function ico(name){const paths={edit:`<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>`,delete:`<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`,eye:`<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>`,'add-circle':`<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>`};return paths[name]||'';}
+window.addEventListener('resize',()=>{const t=$('sidebar-toggle');if(window.innerWidth<=768)t.style.display='flex';else{t.style.display='none';$('sidebar').classList.remove('open');}});
+if(window.innerWidth<=768)$('sidebar-toggle').style.display='flex';
+if(TOKEN)bootApp();
+</script>
+</body>
+</html>
