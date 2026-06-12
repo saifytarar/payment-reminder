@@ -405,7 +405,7 @@ textarea{resize:vertical;min-height:75px}
 
 
 <!-- INVOICES PAGE -->
-<div id="page-invoices" class="page" style="display:none">
+<div id="page-invoices" class="page">
   <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
     <h2 style="font-size:1.5rem;font-weight:700;margin:0">Invoices</h2>
     <button class="btn btn-primary" onclick="openInvoiceModal()">+ Create Invoice</button>
@@ -501,7 +501,7 @@ function navigate(page){
   if(navEl) navEl.classList.add('active');
   const titles={dashboard:'Dashboard',customers:'Customers','due-payments':'Due Payments','overdue-payments':'Overdue Payments',payments:'Payment History',calendar:'Calendar',settings:'Settings'};
   $('page-title').textContent=titles[page]||page;
-  const loaders={dashboard:loadDashboard,customers:loadCustomers,'due-payments':loadDuePayments,'overdue-payments':loadOverduePayments,payments:loadPayments,calendar:renderCalendar,settings:loadSettings};
+  const loaders={dashboard:loadDashboard,customers:loadCustomers,'due-payments':loadDuePayments,'overdue-payments':loadOverduePayments,payments:loadPayments,calendar:renderCalendar,settings:loadSettings,invoices:loadInvoices};
   loaders[page]?.();
 }
 $('sidebar-nav').addEventListener('click',e=>{const item=e.target.closest('[data-page]');if(item)navigate(item.dataset.page);});
