@@ -678,7 +678,7 @@ if(TOKEN)bootApp();
 window._allInvoices = [];
 
 async function loadInvoices() {
-  const rows = await api('GET', '/api/invoices');
+  const rows = await api('GET', '/invoices');
   window._allInvoices = rows;
   renderInvoicesTable(rows);
 }
@@ -726,7 +726,7 @@ async function openInvoiceModal(id=null) {
   const customers = await api('/api/customers');
   $('inv-customer').innerHTML = '<option value="">Select customer...</option>' + customers.map(c => `<option value="${c.id}">${c.name}${c.company?' ('+c.company+')':''}</option>`).join('');
   if (id) {
-    const inv = await api('GET', `/api/invoices/${id}`);
+    const inv = await api('GET', `/invoices/${id}`);
     $('inv-customer').value = inv.customer_id;
     $('inv-amount').value = inv.amount||'';
     $('inv-date').value = inv.invoice_date||'';
@@ -750,15 +750,15 @@ async function saveInvoice() {
     status: $('inv-status').value
   };
   try {
-    if (id) { await api('PUT', `/api/invoices/${id}`, body); }
-    else { await api('POST', '/api/invoices', body); }
+    if (id) { await api('PUT', `/invoices/${id}`, body); }
+    else { await api('POST', '/invoices', body); }
     closeModal('modal-invoice');
     loadInvoices();
   } catch(e) { $('inv-err').textContent=e.message||'Error saving invoice'; $('inv-err').classList.remove('hidden'); }
 }
 
 async function viewInvoice(id) {
-  const inv = await api('GET', `/api/invoices/${id}`);
+  const inv = await api('GET', `/invoices/${id}`);
   const stColors = {Draft:'var(--warning)',Sent:'var(--info)',Paid:'var(--success)'};
   $('inv-view-title').textContent = inv.invoice_id;
   $('inv-view-body').innerHTML = `
@@ -783,20 +783,20 @@ async function viewInvoice(id) {
 }
 
 async function markInvoice(id, status) {
-  await api('PUT', `/api/invoices/${id}/status`, {status});
+  await api('PUT', `/invoices/${id}/status`, {status});
   closeModal('modal-invoice-view');
   loadInvoices();
 }
 
 async function deleteInvoice(id) {
   if (!confirm('Delete this invoice? This cannot be undone.')) return;
-  await api('DELETE', `/api/invoices/${id}`);
+  await api('DELETE', `/invoices/${id}`);
   closeModal('modal-invoice-view');
   loadInvoices();
 }
 
 async function sendWhatsApp(id) {
-  const inv = await api('GET', `/api/invoices/${id}`);
+  const inv = await api('GET', `/invoices/${id}`);
   let phone = (inv.customer_phone||'').replace(/[^0-9]/g,'');
   if (!phone) { alert('No phone number saved for this customer.'); return; }
   // Add country code 92 for Pakistan if not present
