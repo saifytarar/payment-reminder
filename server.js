@@ -15,9 +15,6 @@ const JWT_SECRET = process.env.JWT_SECRET || 'payment-reminder-secret-2024';
 app.use(cors());
 app.use(express.json());
 
-// ─────────────────────────────────────────────
-// Auth Middleware
-// ─────────────────────────────────────────────
 function auth(req, res, next) {
   const header = req.headers.authorization;
   if (!header) return res.status(401).json({ error: 'No token' });
@@ -29,21 +26,6 @@ function auth(req, res, next) {
   }
 }
 
-// ─────────────────────────────────────────────
-// Status helper
-// ─────────────────────────────────────────────
-function updateStatuses() {
-  const today = new Date().toISOString().split('T')[0];
-  const soon  = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0];
-  db.prepare(`UPDATE payments SET status='overdue'   WHERE next_due_date < ? AND status != 'paid'`).run(today);
-  db.prepare(`UPDATE payments SET status='due_soon'  WHERE next_due_date > ? AND next_due_date <= ? AND status NOT IN ('paid','overdue')`).run(today, soon);
-  db.prepare(`UPDATE payments SET status='due_today' WHERE next_due_date = ? AND status NOT IN ('paid','overdue')`).run(today);
-}
-updateStatuses();
-
-// ─────────────────────────────────────────────
-// Email Helper
-// ─────────────────────────────────────────────
 function getTransporter() {
   const s = {};
   queries.getAllSettings.all().forEach(r => { s[r.key] = r.value; });
@@ -73,32 +55,24 @@ async function sendReminderEmail(subject, html) {
   }
 }
 
-// ─────────────────────────────────────────────
-// Scheduled Reminder Job (runs daily at 8am)
-// ─────────────────────────────────────────────
 cron.schedule('0 8 * * *', async () => {
-  updateStatuses();
   const settings = {};
   queries.getAllSettings.all().forEach(r => { settings[r.key] = r.value; });
   const days = [settings.reminder_days_before || '7', settings.reminder_days_before_2 || '1'];
-
   for (const d of days) {
-    const payments = queries.getPaymentsForReminders.all(`+${d}`);
-    for (const p of payments) {
-      const msg = `Payment of $${p.amount} from ${p.customer_name} is due in ${d} day(s) on ${p.next_due_date}`;
-      queries.createNotification.run('reminder', msg, p.id, p.customer_id);
+    const customers = queries.getPaymentsForReminders.all(`+${d}`);
+    for (const c of customers) {
+      const msg = `Payment of ${c.amount} from ${c.customer_name} is due in ${d} day(s) on ${c.next_due_date}`;
+      queries.createNotification.run('reminder', msg, null, c.id);
       await sendReminderEmail(
-        `Payment Reminder: ${p.customer_name} – Due in ${d} day(s)`,
-        `<h2>Payment Reminder</h2><p>${msg}</p><p><strong>Amount:</strong> $${p.amount}</p><p><strong>Due Date:</strong> ${p.next_due_date}</p>`
+        `Payment Reminder: ${c.customer_name} – Due in ${d} day(s)`,
+        `<h2>Payment Reminder</h2><p>${msg}</p><p><strong>Amount:</strong> ${c.amount}</p><p><strong>Due Date:</strong> ${c.next_due_date}</p>`
       );
     }
   }
   console.log('[cron] Daily reminders processed');
 });
 
-// ─────────────────────────────────────────────
-// AUTH ROUTES
-// ─────────────────────────────────────────────
 app.post('/api/auth/login', (req, res) => {
   const { username, password } = req.body;
   const user = queries.getUserByUsername.get(username);
@@ -127,23 +101,15 @@ app.put('/api/auth/password', auth, (req, res) => {
   res.json({ success: true });
 });
 
-// ─────────────────────────────────────────────
-// DASHBOARD
-// ─────────────────────────────────────────────
 app.get('/api/dashboard', auth, (req, res) => {
-  updateStatuses();
   res.json({
-    stats:    queries.getDashboardStats.get(),
+    stats: queries.getDashboardStats.get(),
     upcoming: queries.getUpcomingPayments.all(),
-    overdue:  queries.getOverduePayments.all(),
+    overdue: queries.getOverduePayments.all(),
   });
 });
 
-// ─────────────────────────────────────────────
-// CUSTOMERS
-// ─────────────────────────────────────────────
 app.get('/api/customers', auth, (req, res) => {
-  updateStatuses();
   let list = queries.getAllCustomers.all();
   if (req.query.search) {
     const q = req.query.search.toLowerCase();
@@ -164,15 +130,26 @@ app.get('/api/customers/:id', auth, (req, res) => {
 });
 
 app.post('/api/customers', auth, (req, res) => {
-  const { name, company, phone, email, address, notes } = req.body;
+  const { name, company, phone, email, address, notes,
+          payment_frequency, frequency_value, payment_amount, next_due_date } = req.body;
   if (!name) return res.status(400).json({ error: 'Name is required' });
-  const r = queries.createCustomer.run(name, company||'', phone||'', email||'', address||'', notes||'');
+  const r = queries.createCustomer.run(
+    name, company||'', phone||'', email||'', address||'', notes||'',
+    payment_frequency||'monthly', parseInt(frequency_value)||1,
+    parseFloat(payment_amount)||0, next_due_date||null
+  );
   res.json({ id: r.lastInsertRowid, success: true });
 });
 
 app.put('/api/customers/:id', auth, (req, res) => {
-  const { name, company, phone, email, address, notes } = req.body;
-  queries.updateCustomer.run(name, company||'', phone||'', email||'', address||'', notes||'', req.params.id);
+  const { name, company, phone, email, address, notes,
+          payment_frequency, frequency_value, payment_amount, next_due_date } = req.body;
+  queries.updateCustomer.run(
+    name, company||'', phone||'', email||'', address||'', notes||'',
+    payment_frequency||'monthly', parseInt(frequency_value)||1,
+    parseFloat(payment_amount)||0, next_due_date||null,
+    req.params.id
+  );
   res.json({ success: true });
 });
 
@@ -181,14 +158,37 @@ app.delete('/api/customers/:id', auth, (req, res) => {
   res.json({ success: true });
 });
 
-// ─────────────────────────────────────────────
-// PAYMENTS
-// ─────────────────────────────────────────────
+app.post('/api/customers/:id/mark-paid', auth, (req, res) => {
+  const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(req.params.id);
+  if (!customer) return res.status(404).json({ error: 'Not found' });
+  const paymentDate = req.body.payment_date || new Date().toISOString().split('T')[0];
+  const amount = parseFloat(req.body.amount) || customer.payment_amount;
+  const next = calcNextDue(paymentDate, customer.payment_frequency, customer.frequency_value || 1);
+  const r = queries.createPayment.run(
+    customer.id, amount, paymentDate,
+    customer.payment_frequency, customer.frequency_value || 1,
+    next, 'paid', req.body.notes || ''
+  );
+  queries.updateCustomerNextDue.run(next, customer.id);
+  queries.createNotification.run(
+    'payment_received',
+    `Payment of ${amount} received from ${customer.name}. Next due: ${next}`,
+    r.lastInsertRowid, customer.id
+  );
+  res.json({ success: true, next_due_date: next });
+});
+
+app.get('/api/due-payments', auth, (req, res) => {
+  res.json(queries.getDueCustomers.all());
+});
+
+app.get('/api/overdue-payments', auth, (req, res) => {
+  res.json(queries.getOverdueCustomers.all());
+});
+
 app.get('/api/payments', auth, (req, res) => {
-  updateStatuses();
   let list = queries.getAllPayments.all();
-  if (req.query.status)      list = list.filter(p => p.status === req.query.status);
-  if (req.query.frequency)   list = list.filter(p => p.frequency === req.query.frequency);
+  if (req.query.frequency) list = list.filter(p => p.frequency === req.query.frequency);
   if (req.query.customer_id) list = list.filter(p => p.customer_id == req.query.customer_id);
   res.json(list);
 });
@@ -205,7 +205,6 @@ app.post('/api/payments', auth, (req, res) => {
     return res.status(400).json({ error: 'Missing required fields' });
   const next = calcNextDue(payment_date, frequency, frequency_value || 1);
   const r = queries.createPayment.run(customer_id, amount, payment_date, frequency, frequency_value||1, next, 'paid', notes||'');
-  updateStatuses();
   res.json({ id: r.lastInsertRowid, next_due_date: next, success: true });
 });
 
@@ -213,7 +212,6 @@ app.put('/api/payments/:id', auth, (req, res) => {
   const { customer_id, amount, payment_date, frequency, frequency_value, next_due_date, notes } = req.body;
   const next = next_due_date || calcNextDue(payment_date, frequency, frequency_value || 1);
   queries.updatePayment.run(customer_id, amount, payment_date, frequency, frequency_value||1, next, 'paid', notes||'', req.params.id);
-  updateStatuses();
   res.json({ success: true });
 });
 
@@ -226,28 +224,21 @@ app.post('/api/payments/:id/mark-paid', auth, (req, res) => {
   const payment = queries.getPaymentById.get(req.params.id);
   if (!payment) return res.status(404).json({ error: 'Not found' });
   const today = new Date().toISOString().split('T')[0];
-  const next  = calcNextDue(today, payment.frequency, payment.frequency_value);
+  const next = calcNextDue(today, payment.frequency, payment.frequency_value);
   queries.markPaid.run(today, next, req.params.id);
   queries.createNotification.run('payment_received',
     `Payment received from ${payment.customer_name}. Next due: ${next}`,
     payment.id, payment.customer_id
   );
-  updateStatuses();
   res.json({ success: true, next_due_date: next });
 });
 
-// ─────────────────────────────────────────────
-// CALENDAR
-// ─────────────────────────────────────────────
 app.get('/api/calendar', auth, (req, res) => {
   const { start, end } = req.query;
   if (!start || !end) return res.status(400).json({ error: 'start and end required' });
   res.json(queries.getPaymentsForCalendar.all(start, end));
 });
 
-// ─────────────────────────────────────────────
-// NOTIFICATIONS
-// ─────────────────────────────────────────────
 app.get('/api/notifications', auth, (req, res) => {
   res.json({ notifications: queries.getNotifications.all(), unread: queries.getUnreadCount.get().n });
 });
@@ -262,9 +253,6 @@ app.put('/api/notifications/read-all', auth, (req, res) => {
   res.json({ success: true });
 });
 
-// ─────────────────────────────────────────────
-// SETTINGS
-// ─────────────────────────────────────────────
 app.get('/api/settings', auth, (req, res) => {
   const rows = queries.getAllSettings.all();
   const s = {};
@@ -285,34 +273,30 @@ app.post('/api/settings/test-email', auth, async (req, res) => {
   try {
     await transporter.sendMail({
       from: queries.getSetting.get('smtp_user')?.value,
-      to:   queries.getSetting.get('owner_email')?.value,
+      to: queries.getSetting.get('owner_email')?.value,
       subject: 'Test Email – Payment Reminder System',
-      html: '<h2>✅ Email is working!</h2><p>Your payment reminder email is configured correctly.</p>',
+      html: '<h2>Email is working!</h2><p>Your payment reminder email is configured correctly.</p>',
     });
     res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/reminders/trigger', auth, async (req, res) => {
-  updateStatuses();
   const settings = {};
   queries.getAllSettings.all().forEach(r => { settings[r.key] = r.value; });
   const days = [settings.reminder_days_before || '7', settings.reminder_days_before_2 || '1'];
   let count = 0;
   for (const d of days) {
-    const payments = queries.getPaymentsForReminders.all(`+${d}`);
-    for (const p of payments) {
-      const msg = `Payment of $${p.amount} from ${p.customer_name} is due in ${d} day(s) on ${p.next_due_date}`;
-      queries.createNotification.run('reminder', msg, p.id, p.customer_id);
+    const customers = queries.getPaymentsForReminders.all(`+${d}`);
+    for (const c of customers) {
+      const msg = `Payment of ${c.amount} from ${c.customer_name} is due in ${d} day(s) on ${c.next_due_date}`;
+      queries.createNotification.run('reminder', msg, null, c.id);
       count++;
     }
   }
   res.json({ success: true, reminders_created: count });
 });
 
-// ─────────────────────────────────────────────
-// Serve frontend
-// ─────────────────────────────────────────────
 app.get('*', (req, res) => {
   const htmlPath = path.join(__dirname, 'index.html');
   if (fs.existsSync(htmlPath)) res.sendFile(htmlPath);
@@ -321,5 +305,5 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`\n🚀 Payment Reminder System running at http://localhost:${PORT}`);
-  console.log(`   Default login: admin / admin123\n`);
+  console.log(` Default login: admin / admin123\n`);
 });
