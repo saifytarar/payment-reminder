@@ -307,7 +307,62 @@ textarea{resize:vertical;min-height:75px}
           </div>
         </div>
       </section>
+    
+<!-- INVOICES PAGE -->
+<div id="page-invoices" class="page">
+  <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
+    <h2 style="font-size:1.5rem;font-weight:700;margin:0">Invoices</h2>
+    <button class="btn btn-primary" onclick="openInvoiceModal()">+ Create Invoice</button>
+  </div>
+  <div style="background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow)">
+    <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
+      <input id="inv-search" type="text" placeholder="Search invoices..." oninput="filterInvoices()" style="flex:1;min-width:180px">
+      <select id="inv-status-filter" onchange="filterInvoices()" style="width:140px">
+        <option value="">All Status</option>
+        <option value="Draft">Draft</option>
+        <option value="Sent">Sent</option>
+        <option value="Paid">Paid</option>
+      </select>
     </div>
+    <div id="invoices-list" style="overflow-x:auto"><table class="data-table"><thead><tr><th>Invoice ID</th><th>Customer</th><th>Amount</th><th>Date</th><th>Due Date</th><th>Status</th><th>Actions</th></tr></thead><tbody id="invoices-tbody"><tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">Loading...</td></tr></tbody></table></div>
+  </div>
+</div>
+
+<!-- INVOICE MODAL (Create/Edit) -->
+<div id="modal-invoice" class="modal-overlay" style="display:none">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header"><h3 id="inv-modal-title">Create Invoice</h3><button class="modal-close" onclick="closeModal('modal-invoice')">&times;</button></div>
+    <div class="modal-body">
+      <div id="inv-err" class="alert alert-danger hidden"></div>
+      <input type="hidden" id="inv-id">
+      <div class="form-row"><label>Customer *</label><select id="inv-customer"><option value="">Select customer...</option></select></div>
+      <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div><label>Invoice Date</label><input type="date" id="inv-date"></div>
+        <div><label>Due Date (optional)</label><input type="date" id="inv-due-date"></div>
+      </div>
+      <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+        <div><label>Amount (Rs)</label><input type="number" id="inv-amount" placeholder="0" min="0" step="0.01"></div>
+        <div><label>Status</label><select id="inv-status"><option value="Draft">Draft</option><option value="Sent">Sent</option><option value="Paid">Paid</option></select></div>
+      </div>
+      <div class="form-row"><label>Invoice Content</label><p style="font-size:.8rem;color:var(--text-muted);margin:0 0 .5rem">Describe the services provided, items, or any details to include in the invoice.</p><textarea id="inv-content" rows="8" placeholder="e.g.&#10;Service: Monthly Website Maintenance&#10;- Bug fixes and updates&#10;- Hosting support&#10;- Performance monitoring&#10;&#10;Period: June 2026" style="font-family:monospace;font-size:.9rem"></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-invoice')">Cancel</button><button class="btn btn-primary" onclick="saveInvoice()">Save Invoice</button></div>
+  </div>
+</div>
+
+<!-- INVOICE VIEW MODAL -->
+<div id="modal-invoice-view" class="modal-overlay" style="display:none">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header"><h3 id="inv-view-title">Invoice</h3><button class="modal-close" onclick="closeModal('modal-invoice-view')">&times;</button></div>
+    <div class="modal-body">
+      <div id="inv-view-body" style="font-family:inherit"></div>
+    </div>
+    <div class="modal-footer" id="inv-view-actions"></div>
+  </div>
+</div>
+</div>
+
+</div>
   </main>
 </div>
 
@@ -402,60 +457,6 @@ textarea{resize:vertical;min-height:75px}
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-confirm')">Cancel</button><button class="btn btn-danger" id="confirm-ok">Delete</button></div>
   </div>
 
-
-<!-- INVOICES PAGE -->
-<div id="page-invoices" class="page">
-  <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem">
-    <h2 style="font-size:1.5rem;font-weight:700;margin:0">Invoices</h2>
-    <button class="btn btn-primary" onclick="openInvoiceModal()">+ Create Invoice</button>
-  </div>
-  <div style="background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow)">
-    <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
-      <input id="inv-search" type="text" placeholder="Search invoices..." oninput="filterInvoices()" style="flex:1;min-width:180px">
-      <select id="inv-status-filter" onchange="filterInvoices()" style="width:140px">
-        <option value="">All Status</option>
-        <option value="Draft">Draft</option>
-        <option value="Sent">Sent</option>
-        <option value="Paid">Paid</option>
-      </select>
-    </div>
-    <div id="invoices-list" style="overflow-x:auto"><table class="data-table"><thead><tr><th>Invoice ID</th><th>Customer</th><th>Amount</th><th>Date</th><th>Due Date</th><th>Status</th><th>Actions</th></tr></thead><tbody id="invoices-tbody"><tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">Loading...</td></tr></tbody></table></div>
-  </div>
-</div>
-
-<!-- INVOICE MODAL (Create/Edit) -->
-<div id="modal-invoice" class="modal-overlay" style="display:none">
-  <div class="modal" style="max-width:640px">
-    <div class="modal-header"><h3 id="inv-modal-title">Create Invoice</h3><button class="modal-close" onclick="closeModal('modal-invoice')">&times;</button></div>
-    <div class="modal-body">
-      <div id="inv-err" class="alert alert-danger hidden"></div>
-      <input type="hidden" id="inv-id">
-      <div class="form-row"><label>Customer *</label><select id="inv-customer"><option value="">Select customer...</option></select></div>
-      <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-        <div><label>Invoice Date</label><input type="date" id="inv-date"></div>
-        <div><label>Due Date (optional)</label><input type="date" id="inv-due-date"></div>
-      </div>
-      <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-        <div><label>Amount (Rs)</label><input type="number" id="inv-amount" placeholder="0" min="0" step="0.01"></div>
-        <div><label>Status</label><select id="inv-status"><option value="Draft">Draft</option><option value="Sent">Sent</option><option value="Paid">Paid</option></select></div>
-      </div>
-      <div class="form-row"><label>Invoice Content</label><p style="font-size:.8rem;color:var(--text-muted);margin:0 0 .5rem">Describe the services provided, items, or any details to include in the invoice.</p><textarea id="inv-content" rows="8" placeholder="e.g.&#10;Service: Monthly Website Maintenance&#10;- Bug fixes and updates&#10;- Hosting support&#10;- Performance monitoring&#10;&#10;Period: June 2026" style="font-family:monospace;font-size:.9rem"></textarea></div>
-    </div>
-    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-invoice')">Cancel</button><button class="btn btn-primary" onclick="saveInvoice()">Save Invoice</button></div>
-  </div>
-</div>
-
-<!-- INVOICE VIEW MODAL -->
-<div id="modal-invoice-view" class="modal-overlay" style="display:none">
-  <div class="modal" style="max-width:640px">
-    <div class="modal-header"><h3 id="inv-view-title">Invoice</h3><button class="modal-close" onclick="closeModal('modal-invoice-view')">&times;</button></div>
-    <div class="modal-body">
-      <div id="inv-view-body" style="font-family:inherit"></div>
-    </div>
-    <div class="modal-footer" id="inv-view-actions"></div>
-  </div>
-</div>
-</div>
 
 <script>
 'use strict';
