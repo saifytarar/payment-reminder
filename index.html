@@ -679,23 +679,38 @@ function filterInvoices() {
   renderInvoicesTable(filtered);
 }
 
-function renderInvoicesTable(rows) {
-  const tb = $('invoices-tbody');
-  if (!rows.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">No invoices yet. Click + Create Invoice to get started.</td></tr>'; return; }
-  const stColors = {Draft:'var(--warning)',Sent:'var(--info)',Paid:'var(--success)'};
-  tb.innerHTML = rows.map(inv => `<tr>
-    <td><strong>${inv.invoice_id}</strong></td>
-    <td>${inv.customer_name}</td>
-    <td style="font-weight:600">${fmtAmt(inv.amount)}</td>
-    <td>${inv.invoice_date||'-'}</td>
-    <td>${inv.due_date||'-'}</td>
-    <td><span style="background:${stColors[inv.status]||'#999'};color:#fff;padding:2px 10px;border-radius:20px;font-size:.78rem;font-weight:600">${inv.status}</span></td>
-    <td style="display:flex;gap:.4rem;flex-wrap:wrap">
-      <button class="btn btn-sm btn-ghost" onclick="viewInvoice(${inv.id})">View</button>
-      ${inv.status==='Draft'?`<button class="btn btn-sm btn-ghost" onclick="openInvoiceModal(${inv.id})">Edit</button>`:''}
-      ${inv.whatsapp_consent?`<button class="btn btn-sm" style="background:#25D366;color:#fff" onclick="sendWhatsApp(${inv.id})">WhatsApp</button>`:''}
-    </td>
-  </tr>`).join('');
+function renderInvoicesTable(invoices){
+  const tb=$('invoices-tbody');
+  if(!tb)return;
+  if(!invoices||!invoices.length){
+    tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">No invoices yet. Click + Create Invoice to add one.</td></tr>';
+    return;
+  }
+  const fmt=n=>new Intl.NumberFormat('en-PK',{style:'currency',currency:'PKR',maximumFractionDigits:0}).format(n);
+  tb.innerHTML=invoices.map(inv=>{
+    const statusBadge=invBadge(inv.status);
+    const waBtn=inv.whatsapp_consent
+      ? `<a class="btn btn-sm" style="background:#25d366;color:#fff;text-decoration:none;padding:.25rem .6rem;border-radius:6px;font-size:.8rem" href="https://wa.me/${normalizePhone(inv.phone||'')}?text=${encodeURIComponent('Invoice '+inv.invoice_id+' for Rs '+inv.amount+' is due on '+inv.due_date)}" target="_blank">WhatsApp</a>`
+      : '';
+    const markBtn=inv.status!=='Paid'
+      ? `<button class="btn btn-sm btn-success" onclick="updateInvoiceStatus(${inv.id},'${inv.status==='Draft'?'Sent':'Paid'}')">${inv.status==='Draft'?'Mark Sent':'Mark Paid'}</button>`
+      : '';
+    return `<tr>
+      <td>${esc(inv.invoice_id)}</td>
+      <td>${esc(inv.customer_name||(inv.company_name||''))}</td>
+      <td>${fmt(inv.amount)}</td>
+      <td>${inv.invoice_date||''}</td>
+      <td>${inv.due_date||''}</td>
+      <td>${statusBadge}</td>
+      <td style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-sm btn-ghost" onclick="viewInvoice(${inv.id})">View</button>
+        <button class="btn btn-sm btn-ghost" onclick="openInvoiceModal(${inv.id})">Edit</button>
+        ${markBtn}
+        <button class="btn btn-sm btn-danger" onclick="confirmDelInvoice(${inv.id},'${esc(inv.invoice_id)}')">Delete</button>
+        ${waBtn}
+      </td>
+    </tr>`;
+  }).join('');
 }
 
 async function openInvoiceModal(id=null) {
