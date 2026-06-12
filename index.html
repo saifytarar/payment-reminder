@@ -60,10 +60,11 @@ tr:last-child td{border-bottom:none}
 tr:hover td{background:#fafafa}
 .empty-row td{text-align:center;padding:2rem;color:var(--text-muted)}
 .badge{display:inline-flex;align-items:center;padding:.2rem .55rem;border-radius:99px;font-size:.73rem;font-weight:600;white-space:nowrap}
-.badge-paid{background:#d1fae5;color:#065f46}
+.badge-paid,.badge-on_track{background:#d1fae5;color:#065f46}
 .badge-due_today{background:#fef3c7;color:#92400e}
 .badge-due_soon{background:#dbeafe;color:#1e40af}
 .badge-overdue{background:#fee2e2;color:#991b1b}
+.badge-no_setup{background:#f1f5f9;color:#64748b}
 .badge-reminder,.badge-due{background:#ede9fe;color:#5b21b6}
 .badge-payment_received{background:#d1fae5;color:#065f46}
 .badge-info{background:#dbeafe;color:#1e40af}
@@ -71,6 +72,7 @@ tr:hover td{background:#fafafa}
 .btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:var(--primary-dark)}
 .btn-success{background:var(--success);color:#fff}.btn-success:hover{background:#059669}
 .btn-danger{background:var(--danger);color:#fff}.btn-danger:hover{background:#dc2626}
+.btn-warning{background:var(--warning);color:#fff}.btn-warning:hover{background:#d97706}
 .btn-ghost{background:transparent;color:var(--text-muted);border:1px solid var(--border)}.btn-ghost:hover{background:var(--bg);color:var(--text)}
 .btn-sm{padding:.3rem .65rem;font-size:.8rem}
 .btn-icon{padding:.35rem;border-radius:6px;background:none;border:none;cursor:pointer;color:var(--text-muted);transition:background var(--transition);display:inline-flex;align-items:center;justify-content:center}
@@ -91,6 +93,7 @@ textarea{resize:vertical;min-height:75px}
 .modal-header h3{font-size:1.05rem;font-weight:600}
 .modal-body{padding:1.5rem}
 .modal-footer{padding:1rem 1.5rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:.75rem;position:sticky;bottom:0;background:#fff}
+.section-divider{font-size:.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;padding:.5rem 0 .25rem;border-bottom:1px solid var(--border);margin-bottom:.75rem;margin-top:.5rem}
 .search-bar{display:flex;align-items:center;gap:.5rem;background:#fff;border:1px solid var(--border);border-radius:8px;padding:.4rem .75rem}
 .search-bar input{border:none;outline:none;background:none;font-size:.875rem;width:200px}
 .filter-bar{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
@@ -137,6 +140,7 @@ textarea{resize:vertical;min-height:75px}
 .flex{display:flex}.items-center{align-items:center}.gap-2{gap:.5rem}.gap-3{gap:.75rem}.justify-between{justify-content:space-between}
 .w-full{width:100%}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.days-overdue{background:#fee2e2;color:#991b1b;padding:.15rem .45rem;border-radius:6px;font-size:.75rem;font-weight:600}
 @media(max-width:768px){
   .sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}
   .main{margin-left:0}.form-row,.two-col{grid-template-columns:1fr}
@@ -172,7 +176,9 @@ textarea{resize:vertical;min-height:75px}
     <nav class="sidebar-nav" id="sidebar-nav">
       <div class="nav-item active" data-page="dashboard"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>Dashboard</div>
       <div class="nav-item" data-page="customers"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>Customers</div>
-      <div class="nav-item" data-page="payments"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>Payments</div>
+      <div class="nav-item" data-page="due-payments"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>Due Payments</div>
+      <div class="nav-item" data-page="overdue-payments"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>Overdue</div>
+      <div class="nav-item" data-page="payments"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>Payment History</div>
       <div class="nav-item" data-page="calendar"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>Calendar</div>
       <div class="nav-item" data-page="settings"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>Settings</div>
     </nav>
@@ -207,8 +213,8 @@ textarea{resize:vertical;min-height:75px}
           <div class="stat-card"><div class="stat-icon" style="background:#fee2e2"><svg viewBox="0 0 24 24" fill="#dc2626" width="24" height="24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div><div><div class="stat-value" id="stat-overdue">—</div><div class="stat-label">Overdue</div></div></div>
         </div>
         <div class="two-col">
-          <div class="card"><div class="card-header"><h3>📅 Upcoming Payments</h3><button class="btn btn-sm btn-ghost" onclick="navigate('payments')">View All</button></div><div class="table-wrap"><table><thead><tr><th>Customer</th><th>Amount</th><th>Due</th><th>Status</th></tr></thead><tbody id="dash-upcoming"></tbody></table></div></div>
-          <div class="card"><div class="card-header"><h3>🔴 Overdue Payments</h3></div><div class="table-wrap"><table><thead><tr><th>Customer</th><th>Amount</th><th>Due</th><th></th></tr></thead><tbody id="dash-overdue"></tbody></table></div></div>
+          <div class="card"><div class="card-header"><h3>📅 Upcoming Payments</h3><button class="btn btn-sm btn-ghost" onclick="navigate('due-payments')">View All</button></div><div class="table-wrap"><table><thead><tr><th>Customer</th><th>Amount</th><th>Due</th><th>Status</th></tr></thead><tbody id="dash-upcoming"></tbody></table></div></div>
+          <div class="card"><div class="card-header"><h3>🔴 Overdue Payments</h3><button class="btn btn-sm btn-ghost" onclick="navigate('overdue-payments')">View All</button></div><div class="table-wrap"><table><thead><tr><th>Customer</th><th>Amount</th><th>Due</th><th></th></tr></thead><tbody id="dash-overdue"></tbody></table></div></div>
         </div>
       </section>
 
@@ -218,19 +224,34 @@ textarea{resize:vertical;min-height:75px}
           <div class="search-bar"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="color:var(--text-muted)"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg><input id="cust-search" type="text" placeholder="Search by name, company, phone…" oninput="loadCustomers()"/></div>
           <button class="btn btn-primary" onclick="openCustomerModal()"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>Add Customer</button>
         </div>
-        <div class="card"><div class="table-wrap"><table><thead><tr><th>#</th><th>Customer</th><th>Company</th><th>Phone</th><th>Email</th><th>Next Due</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead><tbody id="cust-tbody"><tr class="empty-row"><td colspan="9">Loading…</td></tr></tbody></table></div></div>
+        <div class="card"><div class="table-wrap"><table><thead><tr><th>#</th><th>Customer</th><th>Company</th><th>Phone</th><th>Frequency</th><th>Amount</th><th>Next Due</th><th>Status</th><th>Actions</th></tr></thead><tbody id="cust-tbody"><tr class="empty-row"><td colspan="9">Loading…</td></tr></tbody></table></div></div>
       </section>
 
-      <!-- PAYMENTS -->
+      <!-- DUE PAYMENTS -->
+      <section class="page" id="page-due-payments">
+        <div class="card">
+          <div class="card-header"><h3>⏰ Payments Due (Next 7 Days)</h3><button class="btn btn-sm btn-ghost" onclick="loadDuePayments()">↻ Refresh</button></div>
+          <div class="table-wrap"><table><thead><tr><th>Customer</th><th>Company</th><th>Phone</th><th>Amount</th><th>Frequency</th><th>Next Due</th><th>Status</th><th>Action</th></tr></thead><tbody id="due-tbody"><tr class="empty-row"><td colspan="8">Loading…</td></tr></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- OVERDUE PAYMENTS -->
+      <section class="page" id="page-overdue-payments">
+        <div class="card">
+          <div class="card-header"><h3>🔴 Overdue Payments</h3><button class="btn btn-sm btn-ghost" onclick="loadOverduePayments()">↻ Refresh</button></div>
+          <div class="table-wrap"><table><thead><tr><th>Customer</th><th>Company</th><th>Phone</th><th>Amount</th><th>Original Due Date</th><th>Days Overdue</th><th>Action</th></tr></thead><tbody id="overdue-tbody"><tr class="empty-row"><td colspan="7">Loading…</td></tr></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- PAYMENT HISTORY -->
       <section class="page" id="page-payments">
         <div class="toolbar">
           <div class="filter-bar">
-            <select id="flt-status" onchange="loadPayments()"><option value="">All Statuses</option><option value="paid">Paid</option><option value="due_today">Due Today</option><option value="due_soon">Due Soon</option><option value="overdue">Overdue</option></select>
             <select id="flt-freq" onchange="loadPayments()"><option value="">All Frequencies</option><option value="monthly">Monthly</option><option value="bimonthly">Every 2 Months</option><option value="every4months">Every 4 Months</option><option value="every6months">Every 6 Months</option><option value="yearly">Yearly</option><option value="custom_days">Custom Days</option><option value="custom_months">Custom Months</option></select>
           </div>
-          <button class="btn btn-primary" onclick="openPaymentModal()"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>Add Payment</button>
+          <span class="text-muted text-sm">Showing all received payments</span>
         </div>
-        <div class="card"><div class="table-wrap"><table><thead><tr><th>Customer</th><th>Phone</th><th>Amount</th><th>Last Paid</th><th>Frequency</th><th>Next Due</th><th>Status</th><th>Actions</th></tr></thead><tbody id="pay-tbody"><tr class="empty-row"><td colspan="8">Loading…</td></tr></tbody></table></div></div>
+        <div class="card"><div class="table-wrap"><table><thead><tr><th>Customer</th><th>Phone</th><th>Amount</th><th>Payment Date</th><th>Frequency</th><th>Next Due</th><th>Actions</th></tr></thead><tbody id="pay-tbody"><tr class="empty-row"><td colspan="7">Loading…</td></tr></tbody></table></div></div>
       </section>
 
       <!-- CALENDAR -->
@@ -247,7 +268,7 @@ textarea{resize:vertical;min-height:75px}
         <div style="max-width:640px">
           <div class="tabs">
             <button class="tab active" data-stab="general">General</button>
-            <button class="tab" data-stab="email">Email & Reminders</button>
+            <button class="tab" data-stab="email">Email &amp; Reminders</button>
             <button class="tab" data-stab="account">Account</button>
           </div>
           <div id="stab-general">
@@ -296,7 +317,9 @@ textarea{resize:vertical;min-height:75px}
 <div id="notif-backdrop" onclick="toggleNotifPanel()" style="display:none;position:fixed;inset:0;z-index:199;background:rgba(0,0,0,.15)"></div>
 </div>
 
-<!-- MODALS -->
+<!-- ══ MODALS ══ -->
+
+<!-- Add/Edit Customer -->
 <div class="modal-overlay" id="modal-customer">
   <div class="modal">
     <div class="modal-header"><h3 id="cust-modal-title">Add Customer</h3><button class="btn-icon" onclick="closeModal('modal-customer')"><svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div>
@@ -306,38 +329,70 @@ textarea{resize:vertical;min-height:75px}
       <div class="form-row"><div class="form-group"><label>Full Name <span class="req">*</span></label><input type="text" id="c-name" placeholder="e.g. Ahmed Khan"/></div><div class="form-group"><label>Company / Business Name</label><input type="text" id="c-company" placeholder="Optional"/></div></div>
       <div class="form-row"><div class="form-group"><label>Phone Number</label><input type="text" id="c-phone" placeholder="+92 300 1234567"/></div><div class="form-group"><label>Email Address</label><input type="email" id="c-email" placeholder="customer@email.com"/></div></div>
       <div class="form-group"><label>Address</label><input type="text" id="c-address" placeholder="Optional"/></div>
+      <div class="section-divider">Payment Setup</div>
+      <div class="form-row">
+        <div class="form-group"><label>Payment Frequency <span class="req">*</span></label><select id="c-freq" onchange="onCustFreqChange()"><option value="monthly">Monthly</option><option value="bimonthly">Every 2 Months</option><option value="every4months">Every 4 Months</option><option value="every6months">Every 6 Months</option><option value="yearly">Yearly</option><option value="custom_days">Custom – Days</option><option value="custom_months">Custom – Months</option></select></div>
+        <div class="form-group"><label>Payment Amount <span class="req">*</span></label><input type="number" id="c-amount" min="0" step="0.01" placeholder="0.00"/></div>
+      </div>
+      <div class="form-group hidden" id="c-custom-wrap"><label>Custom Interval <span class="req">*</span></label><input type="number" id="c-freq-val" min="1" placeholder="e.g. 45 days or 3 months"/></div>
+      <div class="form-group"><label>Initial / Next Due Date <span class="req">*</span></label><input type="date" id="c-next-due"/></div>
+      <div class="section-divider">Additional Info</div>
       <div class="form-group"><label>Notes</label><textarea id="c-notes" placeholder="Any additional notes…"></textarea></div>
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-customer')">Cancel</button><button class="btn btn-primary" onclick="saveCustomer()">Save Customer</button></div>
   </div>
 </div>
 
-<div class="modal-overlay" id="modal-payment">
-  <div class="modal">
-    <div class="modal-header"><h3 id="pay-modal-title">Add Payment</h3><button class="btn-icon" onclick="closeModal('modal-payment')"><svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div>
+<!-- Mark as Paid -->
+<div class="modal-overlay" id="modal-mark-paid">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header"><h3>✅ Mark as Paid</h3><button class="btn-icon" onclick="closeModal('modal-mark-paid')"><svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div>
     <div class="modal-body">
-      <div id="pay-err" class="alert alert-error hidden"></div>
-      <input type="hidden" id="pay-id"/>
-      <div class="form-row"><div class="form-group"><label>Customer <span class="req">*</span></label><select id="p-cust"><option value="">Select customer…</option></select></div><div class="form-group"><label>Amount ($) <span class="req">*</span></label><input type="number" id="p-amount" min="0" step="0.01" placeholder="0.00"/></div></div>
-      <div class="form-row"><div class="form-group"><label>Payment Date <span class="req">*</span></label><input type="date" id="p-date"/></div><div class="form-group"><label>Payment Frequency <span class="req">*</span></label><select id="p-freq" onchange="onFreqChange()"><option value="monthly">Monthly (every 1 month)</option><option value="bimonthly">Every 2 Months</option><option value="every4months">Every 4 Months</option><option value="every6months">Every 6 Months</option><option value="yearly">Yearly (every 12 months)</option><option value="custom_days">Custom – Days</option><option value="custom_months">Custom – Months</option></select></div></div>
-      <div class="form-group hidden" id="custom-freq-wrap"><label>Custom Interval <span class="req">*</span></label><input type="number" id="p-freq-val" min="1" placeholder="e.g. 45 days or 3 months"/></div>
-      <div class="form-group"><label>Notes</label><textarea id="p-notes" placeholder="Optional notes…"></textarea></div>
+      <p id="mp-customer-name" style="font-weight:600;font-size:1.05rem;margin-bottom:1rem"></p>
+      <div id="mp-err" class="alert alert-error hidden"></div>
+      <input type="hidden" id="mp-cust-id"/>
+      <div class="form-row">
+        <div class="form-group"><label>Payment Amount <span class="req">*</span></label><input type="number" id="mp-amount" min="0" step="0.01"/></div>
+        <div class="form-group"><label>Payment Date <span class="req">*</span></label><input type="date" id="mp-date"/></div>
+      </div>
+      <div class="form-group"><label>Notes (optional)</label><input type="text" id="mp-notes" placeholder="e.g. paid via bank transfer"/></div>
+      <div class="alert alert-info" style="margin-top:.5rem;font-size:.83rem">Next due date will be automatically calculated based on payment frequency.</div>
     </div>
-    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-payment')">Cancel</button><button class="btn btn-primary" onclick="savePayment()">Save Payment</button></div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-mark-paid')">Cancel</button><button class="btn btn-success" onclick="submitMarkPaid()">Confirm Payment</button></div>
   </div>
 </div>
 
+<!-- Customer Detail -->
 <div class="modal-overlay" id="modal-cust-detail">
   <div class="modal" style="max-width:680px">
     <div class="modal-header"><h3 id="cd-name">Customer</h3><button class="btn-icon" onclick="closeModal('modal-cust-detail')"><svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div>
     <div class="modal-body">
       <div class="tabs"><button class="tab active" data-cdtab="info">Contact Info</button><button class="tab" data-cdtab="payments">Payment History</button></div>
-      <div id="cdtab-info"><div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;font-size:.875rem"><div><span class="text-muted">Company:</span> <strong id="cd-company">—</strong></div><div><span class="text-muted">Phone:</span> <strong id="cd-phone">—</strong></div><div><span class="text-muted">Email:</span> <strong id="cd-email">—</strong></div><div><span class="text-muted">Address:</span> <strong id="cd-address">—</strong></div></div><div id="cd-notes-wrap" class="hidden" style="margin-top:.75rem;font-size:.875rem"><span class="text-muted">Notes:</span> <span id="cd-notes"></span></div></div>
-      <div id="cdtab-payments" class="hidden"><div class="table-wrap"><table><thead><tr><th>Amount</th><th>Last Paid</th><th>Frequency</th><th>Next Due</th><th>Status</th></tr></thead><tbody id="cd-pay-tbody"></tbody></table></div><div style="margin-top:.75rem"><button class="btn btn-primary btn-sm" id="cd-add-pay-btn">+ Add Payment</button></div></div>
+      <div id="cdtab-info">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;font-size:.875rem">
+          <div><span class="text-muted">Company:</span> <strong id="cd-company">—</strong></div>
+          <div><span class="text-muted">Phone:</span> <strong id="cd-phone">—</strong></div>
+          <div><span class="text-muted">Email:</span> <strong id="cd-email">—</strong></div>
+          <div><span class="text-muted">Address:</span> <strong id="cd-address">—</strong></div>
+          <div><span class="text-muted">Frequency:</span> <strong id="cd-freq">—</strong></div>
+          <div><span class="text-muted">Amount:</span> <strong id="cd-amount">—</strong></div>
+          <div><span class="text-muted">Next Due:</span> <strong id="cd-next-due">—</strong></div>
+          <div><span class="text-muted">Status:</span> <span id="cd-status"></span></div>
+        </div>
+        <div id="cd-notes-wrap" class="hidden" style="margin-top:.75rem;font-size:.875rem"><span class="text-muted">Notes:</span> <span id="cd-notes"></span></div>
+      </div>
+      <div id="cdtab-payments" class="hidden">
+        <div class="table-wrap"><table><thead><tr><th>Amount</th><th>Date Paid</th><th>Frequency</th><th>Next Due After</th></tr></thead><tbody id="cd-pay-tbody"></tbody></table></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-cust-detail')">Close</button>
+      <button class="btn btn-primary btn-sm" id="cd-edit-btn">Edit Customer</button>
     </div>
   </div>
 </div>
 
+<!-- Confirm Delete -->
 <div class="modal-overlay" id="modal-confirm">
   <div class="modal" style="max-width:380px">
     <div class="modal-header"><h3>Confirm Delete</h3></div>
@@ -362,12 +417,14 @@ async function api(method, path, data){
 function fmtDate(d){if(!d)return '—';return new Date(d+'T00:00:00').toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'});}
 function fmtAmt(a){return '$'+Number(a||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function fmtFreq(f,v){const m={monthly:'Monthly',bimonthly:'Every 2 Months',every4months:'Every 4 Months',every6months:'Every 6 Months',yearly:'Yearly',custom_days:`Every ${v} Days`,custom_months:`Every ${v} Months`};return m[f]||f;}
-function badge(s){const lbl={paid:'Paid',due_today:'Due Today',due_soon:'Due Soon',overdue:'Overdue',reminder:'Reminder',payment_received:'Received',due:'Due',info:'Info'};return `<span class="badge badge-${s}">${lbl[s]||s}</span>`;}
+function badge(s){const lbl={paid:'Paid',on_track:'On Track',due_today:'Due Today',due_soon:'Due Soon',overdue:'Overdue',no_setup:'Not Set Up',reminder:'Reminder',payment_received:'Received',due:'Due',info:'Info'};return `<span class="badge badge-${s}">${lbl[s]||s}</span>`;}
 function flash(id,msg,type='success'){const el=$(id);if(!el)return;el.className=`alert alert-${type}`;el.textContent=msg;el.classList.remove('hidden');setTimeout(()=>el.classList.add('hidden'),4000);}
 function openModal(id){$(id).classList.add('open');}
 function closeModal(id){$(id).classList.remove('open');}
 function timeAgo(d){const s=(Date.now()-new Date(d))/1000;if(s<60)return 'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
 function esc(s){if(!s)return '';const d=document.createElement('div');d.textContent=String(s);return d.innerHTML;}
+
+// ── Login ──
 $('login-form').addEventListener('submit',async e=>{
   e.preventDefault();
   try{const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:$('lu').value,password:$('lp').value})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Login failed');TOKEN=d.token;ME=d.user;localStorage.setItem('pr_token',TOKEN);bootApp();}
@@ -378,77 +435,138 @@ async function bootApp(){
   try{ME=await api('GET','/auth/me');$('user-name').textContent=ME.name;$('user-email').textContent=ME.email;$('user-avatar').textContent=ME.name[0].toUpperCase();$('s-name').value=ME.name;$('s-acc-email').value=ME.email;$('login-page').style.display='none';$('app').style.display='block';navigate('dashboard');loadNotifBadge();setInterval(loadNotifBadge,30000);}
   catch{logout();}
 }
+
+// ── Navigation ──
 function navigate(page){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   $('page-'+page).classList.add('active');
-  document.querySelector(`[data-page="${page}"]`).classList.add('active');
-  $('page-title').textContent={dashboard:'Dashboard',customers:'Customers',payments:'Payments',calendar:'Calendar',settings:'Settings'}[page]||page;
-  ({dashboard:loadDashboard,customers:loadCustomers,payments:loadPayments,calendar:renderCalendar,settings:loadSettings})[page]?.();
+  const navEl = document.querySelector(`[data-page="${page}"]`);
+  if(navEl) navEl.classList.add('active');
+  const titles={dashboard:'Dashboard',customers:'Customers','due-payments':'Due Payments','overdue-payments':'Overdue Payments',payments:'Payment History',calendar:'Calendar',settings:'Settings'};
+  $('page-title').textContent=titles[page]||page;
+  const loaders={dashboard:loadDashboard,customers:loadCustomers,'due-payments':loadDuePayments,'overdue-payments':loadOverduePayments,payments:loadPayments,calendar:renderCalendar,settings:loadSettings};
+  loaders[page]?.();
 }
 $('sidebar-nav').addEventListener('click',e=>{const item=e.target.closest('[data-page]');if(item)navigate(item.dataset.page);});
 document.querySelectorAll('[data-stab]').forEach(btn=>btn.addEventListener('click',function(){document.querySelectorAll('[data-stab]').forEach(b=>b.classList.remove('active'));['general','email','account'].forEach(t=>$('stab-'+t).classList.add('hidden'));this.classList.add('active');$('stab-'+this.dataset.stab).classList.remove('hidden');}));
 document.querySelectorAll('[data-cdtab]').forEach(btn=>btn.addEventListener('click',function(){document.querySelectorAll('[data-cdtab]').forEach(b=>b.classList.remove('active'));['info','payments'].forEach(t=>$('cdtab-'+t).classList.add('hidden'));this.classList.add('active');$('cdtab-'+this.dataset.cdtab).classList.remove('hidden');}));
+
+// ── Dashboard ──
 async function loadDashboard(){
   const d=await api('GET','/dashboard');
   $('stat-customers').textContent=d.stats.total_customers;$('stat-today').textContent=d.stats.due_today;$('stat-week').textContent=d.stats.due_in_7;$('stat-overdue').textContent=d.stats.overdue;
   $('dash-upcoming').innerHTML=d.upcoming.length?d.upcoming.slice(0,8).map(p=>`<tr><td><strong>${esc(p.customer_name)}</strong><br><small class="text-muted">${esc(p.company||'')}</small></td><td>${fmtAmt(p.amount)}</td><td>${fmtDate(p.next_due_date)}</td><td>${badge(p.status)}</td></tr>`).join(''):`<tr class="empty-row"><td colspan="4">No upcoming payments 🎉</td></tr>`;
-  $('dash-overdue').innerHTML=d.overdue.length?d.overdue.map(p=>`<tr><td><strong>${esc(p.customer_name)}</strong></td><td>${fmtAmt(p.amount)}</td><td>${fmtDate(p.next_due_date)}</td><td><button class="btn btn-sm btn-success" onclick="markPaid(${p.id})">Mark Paid</button></td></tr>`).join(''):`<tr class="empty-row"><td colspan="4">No overdue payments 🎉</td></tr>`;
+  $('dash-overdue').innerHTML=d.overdue.length?d.overdue.map(p=>`<tr><td><strong>${esc(p.customer_name)}</strong></td><td>${fmtAmt(p.amount)}</td><td>${fmtDate(p.next_due_date)}</td><td><button class="btn btn-sm btn-success" onclick="openMarkPaid(${p.id},'${esc(p.customer_name)}',${p.amount})">Mark Paid</button></td></tr>`).join(''):`<tr class="empty-row"><td colspan="4">No overdue payments 🎉</td></tr>`;
 }
+
+// ── Customers ──
 async function loadCustomers(){
   const q=$('cust-search').value.trim();
   const list=await api('GET','/customers'+(q?'?search='+encodeURIComponent(q):''));
-  $('cust-tbody').innerHTML=list.length?list.map((c,i)=>`<tr><td>${i+1}</td><td><a href="#" onclick="viewCustomer(${c.id});return false" style="color:var(--primary);font-weight:600">${esc(c.name)}</a></td><td>${esc(c.company)||'—'}</td><td>${esc(c.phone)||'—'}</td><td>${esc(c.email)||'—'}</td><td>${fmtDate(c.next_due_date)}</td><td>${c.next_amount?fmtAmt(c.next_amount):'—'}</td><td>${c.payment_status?badge(c.payment_status):'—'}</td><td style="white-space:nowrap"><button class="btn-icon" title="View" onclick="viewCustomer(${c.id})">${ico('eye')}</button><button class="btn-icon" title="Edit" onclick="openCustomerModal(${c.id})">${ico('edit')}</button><button class="btn-icon" title="Add Payment" onclick="openPaymentModal(null,${c.id})">${ico('add-circle')}</button><button class="btn-icon" title="Delete" style="color:var(--danger)" onclick="confirmDel('customer',${c.id},'${esc(c.name)}')">${ico('delete')}</button></td></tr>`).join(''):`<tr class="empty-row"><td colspan="9">No customers found. Click "Add Customer" to get started!</td></tr>`;
+  $('cust-tbody').innerHTML=list.length?list.map((c,i)=>`<tr><td>${i+1}</td><td><a href="#" onclick="viewCustomer(${c.id});return false" style="color:var(--primary);font-weight:600">${esc(c.name)}</a></td><td>${esc(c.company)||'—'}</td><td>${esc(c.phone)||'—'}</td><td>${c.payment_frequency&&c.payment_amount>0?fmtFreq(c.payment_frequency,c.frequency_value):'—'}</td><td>${c.payment_amount>0?fmtAmt(c.payment_amount):'—'}</td><td>${fmtDate(c.next_due_date)}</td><td>${badge(c.payment_status||'no_setup')}</td><td style="white-space:nowrap"><button class="btn-icon" title="View" onclick="viewCustomer(${c.id})">${ico('eye')}</button><button class="btn-icon" title="Edit" onclick="openCustomerModal(${c.id})">${ico('edit')}</button><button class="btn-icon" title="Delete" style="color:var(--danger)" onclick="confirmDel('customer',${c.id},'${esc(c.name)}')">  ${ico('delete')}</button></td></tr>`).join(''):`<tr class="empty-row"><td colspan="9">No customers found. Click "Add Customer" to get started!</td></tr>`;
 }
+
+function onCustFreqChange(){const f=$('c-freq').value;$('c-custom-wrap').classList.toggle('hidden',f!=='custom_days'&&f!=='custom_months');}
+
 async function openCustomerModal(id=null){
   $('cust-modal-title').textContent=id?'Edit Customer':'Add Customer';$('cust-id').value=id||'';$('cust-err').classList.add('hidden');
-  ['c-name','c-company','c-phone','c-email','c-address','c-notes'].forEach(f=>$(f).value='');
-  if(id){const c=await api('GET','/customers/'+id);$('c-name').value=c.name||'';$('c-company').value=c.company||'';$('c-phone').value=c.phone||'';$('c-email').value=c.email||'';$('c-address').value=c.address||'';$('c-notes').value=c.notes||'';}
+  ['c-name','c-company','c-phone','c-email','c-address','c-notes','c-amount','c-freq-val'].forEach(f=>$(f).value='');
+  $('c-freq').value='monthly';$('c-next-due').value='';onCustFreqChange();
+  if(id){
+    const c=await api('GET','/customers/'+id);
+    $('c-name').value=c.name||'';$('c-company').value=c.company||'';$('c-phone').value=c.phone||'';$('c-email').value=c.email||'';$('c-address').value=c.address||'';$('c-notes').value=c.notes||'';
+    $('c-freq').value=c.payment_frequency||'monthly';$('c-freq-val').value=c.frequency_value||'';$('c-amount').value=c.payment_amount||'';$('c-next-due').value=c.next_due_date||'';
+    onCustFreqChange();
+  }
   openModal('modal-customer');
 }
+
 async function saveCustomer(){
   const id=$('cust-id').value;
-  const body={name:$('c-name').value.trim(),company:$('c-company').value.trim(),phone:$('c-phone').value.trim(),email:$('c-email').value.trim(),address:$('c-address').value.trim(),notes:$('c-notes').value.trim()};
+  const freq=$('c-freq').value;
+  const body={name:$('c-name').value.trim(),company:$('c-company').value.trim(),phone:$('c-phone').value.trim(),email:$('c-email').value.trim(),address:$('c-address').value.trim(),notes:$('c-notes').value.trim(),payment_frequency:freq,frequency_value:parseInt($('c-freq-val').value)||1,payment_amount:parseFloat($('c-amount').value)||0,next_due_date:$('c-next-due').value||null};
   if(!body.name){flash('cust-err','Name is required','error');return;}
+  if(!body.payment_amount){flash('cust-err','Payment amount is required','error');return;}
+  if(!body.next_due_date){flash('cust-err','Next due date is required','error');return;}
   try{if(id)await api('PUT','/customers/'+id,body);else await api('POST','/customers',body);closeModal('modal-customer');loadCustomers();}
   catch(e){flash('cust-err',e.message,'error');}
 }
+
 async function viewCustomer(id){
   const c=await api('GET','/customers/'+id);
-  $('cd-name').textContent=c.name;$('cd-company').textContent=c.company||'—';$('cd-phone').textContent=c.phone||'—';$('cd-email').textContent=c.email||'—';$('cd-address').textContent=c.address||'—';$('cd-notes').textContent=c.notes||'';$('cd-notes-wrap').classList.toggle('hidden',!c.notes);
+  $('cd-name').textContent=c.name;$('cd-company').textContent=c.company||'—';$('cd-phone').textContent=c.phone||'—';$('cd-email').textContent=c.email||'—';$('cd-address').textContent=c.address||'—';
+  $('cd-freq').textContent=c.payment_frequency?fmtFreq(c.payment_frequency,c.frequency_value):'—';
+  $('cd-amount').textContent=c.payment_amount>0?fmtAmt(c.payment_amount):'—';
+  $('cd-next-due').textContent=fmtDate(c.next_due_date);
+  $('cd-status').innerHTML=badge(c.payment_status||'no_setup');
+  $('cd-notes').textContent=c.notes||'';$('cd-notes-wrap').classList.toggle('hidden',!c.notes);
   document.querySelectorAll('[data-cdtab]').forEach(b=>b.classList.remove('active'));['info','payments'].forEach(t=>$('cdtab-'+t).classList.add('hidden'));document.querySelector('[data-cdtab="info"]').classList.add('active');$('cdtab-info').classList.remove('hidden');
-  $('cd-pay-tbody').innerHTML=c.payments?.length?c.payments.map(p=>`<tr><td>${fmtAmt(p.amount)}</td><td>${fmtDate(p.payment_date)}</td><td>${fmtFreq(p.frequency,p.frequency_value)}</td><td>${fmtDate(p.next_due_date)}</td><td>${badge(p.status)}</td></tr>`).join(''):`<tr class="empty-row"><td colspan="5">No payments yet</td></tr>`;
-  $('cd-add-pay-btn').onclick=()=>{closeModal('modal-cust-detail');openPaymentModal(null,id);};
+  $('cd-pay-tbody').innerHTML=c.payments?.length?c.payments.map(p=>`<tr><td>${fmtAmt(p.amount)}</td><td>${fmtDate(p.payment_date)}</td><td>${fmtFreq(p.frequency,p.frequency_value)}</td><td>${fmtDate(p.next_due_date)}</td></tr>`).join(''):`<tr class="empty-row"><td colspan="4">No payment history yet</td></tr>`;
+  $('cd-edit-btn').onclick=()=>{closeModal('modal-cust-detail');openCustomerModal(id);};
   openModal('modal-cust-detail');
 }
+
+// ── Due Payments ──
+async function loadDuePayments(){
+  const list=await api('GET','/due-payments');
+  $('due-tbody').innerHTML=list.length?list.map(c=>`<tr><td><strong>${esc(c.name)}</strong></td><td>${esc(c.company||'—')}</td><td>${esc(c.phone||'—')}</td><td>${fmtAmt(c.payment_amount)}</td><td>${fmtFreq(c.payment_frequency,c.frequency_value)}</td><td>${fmtDate(c.next_due_date)}</td><td>${badge(c.payment_status)}</td><td><button class="btn btn-sm btn-success" onclick="openMarkPaid(${c.id},'${esc(c.name)}',${c.payment_amount})">✓ Mark as Paid</button></td></tr>`).join(''):`<tr class="empty-row"><td colspan="8">No payments due in the next 7 days 🎉</td></tr>`;
+}
+
+// ── Overdue Payments ──
+async function loadOverduePayments(){
+  const list=await api('GET','/overdue-payments');
+  $('overdue-tbody').innerHTML=list.length?list.map(c=>`<tr><td><strong>${esc(c.name)}</strong></td><td>${esc(c.company||'—')}</td><td>${esc(c.phone||'—')}</td><td>${fmtAmt(c.payment_amount)}</td><td>${fmtDate(c.next_due_date)}</td><td><span class="days-overdue">${c.days_overdue} day${c.days_overdue===1?'':'s'}</span></td><td style="white-space:nowrap"><button class="btn btn-sm btn-success" style="margin-right:.3rem" onclick="openMarkPaid(${c.id},'${esc(c.name)}',${c.payment_amount})">✓ Mark as Paid</button><button class="btn btn-sm btn-warning" onclick="sendReminder(${c.id},'${esc(c.name)}')">📩 Send Reminder</button></td></tr>`).join(''):`<tr class="empty-row"><td colspan="7">No overdue payments 🎉</td></tr>`;
+}
+
+function sendReminder(id,name){
+  alert(`Reminder for ${name} noted.\n\nEmail/SMS reminder functionality can be enabled once your SMTP settings are configured in Settings → Email & Reminders.`);
+}
+
+// ── Mark as Paid Modal ──
+function openMarkPaid(custId,custName,amount){
+  $('mp-cust-id').value=custId;
+  $('mp-customer-name').textContent='Customer: '+custName;
+  $('mp-amount').value=amount;
+  $('mp-date').value=new Date().toISOString().split('T')[0];
+  $('mp-notes').value='';
+  $('mp-err').classList.add('hidden');
+  openModal('modal-mark-paid');
+}
+
+async function submitMarkPaid(){
+  const custId=$('mp-cust-id').value;
+  const amount=$('mp-amount').value;
+  const date=$('mp-date').value;
+  if(!amount||!date){flash('mp-err','Amount and date are required','error');return;}
+  try{
+    await api('POST','/customers/'+custId+'/mark-paid',{amount:parseFloat(amount),payment_date:date,notes:$('mp-notes').value});
+    closeModal('modal-mark-paid');
+    loadNotifBadge();
+    // Refresh whichever section is active
+    const active=document.querySelector('.page.active');
+    if(active){
+      const id=active.id.replace('page-','');
+      const loaders={dashboard:loadDashboard,customers:loadCustomers,'due-payments':loadDuePayments,'overdue-payments':loadOverduePayments};
+      loaders[id]?.();
+    }
+  }catch(e){flash('mp-err',e.message,'error');}
+}
+
+// ── Payment History ──
 async function loadPayments(){
-  let url='/payments?';const s=$('flt-status').value,f=$('flt-freq').value;if(s)url+=`status=${s}&`;if(f)url+=`frequency=${f}&`;
+  let url='/payments?';const f=$('flt-freq').value;if(f)url+=`frequency=${f}&`;
   const list=await api('GET',url);
-  $('pay-tbody').innerHTML=list.length?list.map(p=>`<tr><td><strong>${esc(p.customer_name)}</strong><br><small class="text-muted">${esc(p.customer_company||'')}</small></td><td>${esc(p.customer_phone)||'—'}</td><td>${fmtAmt(p.amount)}</td><td>${fmtDate(p.payment_date)}</td><td>${fmtFreq(p.frequency,p.frequency_value)}</td><td>${fmtDate(p.next_due_date)}</td><td>${badge(p.status)}</td><td style="white-space:nowrap">${p.status!=='paid'?`<button class="btn btn-sm btn-success" onclick="markPaid(${p.id})" style="margin-right:.25rem">✓ Paid</button>`:''}<button class="btn-icon" title="Edit" onclick="openPaymentModal(${p.id})">${ico('edit')}</button><button class="btn-icon" title="Delete" style="color:var(--danger)" onclick="confirmDel('payment',${p.id},'this payment')">${ico('delete')}</button></td></tr>`).join(''):`<tr class="empty-row"><td colspan="8">No payments found.</td></tr>`;
+  $('pay-tbody').innerHTML=list.length?list.map(p=>`<tr><td><strong>${esc(p.customer_name)}</strong><br><small class="text-muted">${esc(p.customer_company||'')}</small></td><td>${esc(p.customer_phone)||'—'}</td><td>${fmtAmt(p.amount)}</td><td>${fmtDate(p.payment_date)}</td><td>${fmtFreq(p.frequency,p.frequency_value)}</td><td>${fmtDate(p.next_due_date)}</td><td style="white-space:nowrap"><button class="btn-icon" title="Delete" style="color:var(--danger)" onclick="confirmDel('payment',${p.id},'this payment record')">${ico('delete')}</button></td></tr>`).join(''):`<tr class="empty-row"><td colspan="7">No payment records yet. Mark payments as paid to build history.</td></tr>`;
 }
-async function openPaymentModal(id=null,custId=null){
-  $('pay-modal-title').textContent=id?'Edit Payment':'Add Payment';$('pay-id').value=id||'';$('pay-err').classList.add('hidden');
-  $('p-date').value=new Date().toISOString().split('T')[0];$('p-amount').value=$('p-notes').value='';$('p-freq').value='monthly';$('p-freq-val').value='';onFreqChange();
-  const custs=await api('GET','/customers');
-  $('p-cust').innerHTML='<option value="">Select customer…</option>'+custs.map(c=>`<option value="${c.id}">${esc(c.name)}${c.company?' ('+esc(c.company)+')':''}</option>`).join('');
-  if(custId)$('p-cust').value=custId;
-  if(id){const p=await api('GET','/payments/'+id);$('p-cust').value=p.customer_id;$('p-amount').value=p.amount;$('p-date').value=p.payment_date;$('p-freq').value=p.frequency;$('p-freq-val').value=p.frequency_value||'';$('p-notes').value=p.notes||'';onFreqChange();}
-  openModal('modal-payment');
-}
-function onFreqChange(){const f=$('p-freq').value;$('custom-freq-wrap').classList.toggle('hidden',f!=='custom_days'&&f!=='custom_months');}
-async function savePayment(){
-  const id=$('pay-id').value;
-  const body={customer_id:$('p-cust').value,amount:$('p-amount').value,payment_date:$('p-date').value,frequency:$('p-freq').value,frequency_value:parseInt($('p-freq-val').value)||1,notes:$('p-notes').value.trim()};
-  if(!body.customer_id||!body.amount||!body.payment_date){flash('pay-err','Please fill all required fields','error');return;}
-  try{if(id)await api('PUT','/payments/'+id,body);else await api('POST','/payments',body);closeModal('modal-payment');loadPayments();loadDashboard();}
-  catch(e){flash('pay-err',e.message,'error');}
-}
-async function markPaid(id){await api('POST','/payments/'+id+'/mark-paid');loadDashboard();loadPayments();loadNotifBadge();}
+
 function confirmDel(type,id,label){
   $('confirm-text').textContent=`Delete ${label}? This action cannot be undone.`;
   $('confirm-ok').onclick=async()=>{await api('DELETE',`/${type==='customer'?'customers':'payments'}/${id}`);closeModal('modal-confirm');if(type==='customer')loadCustomers();else loadPayments();};
   openModal('modal-confirm');
 }
+
+// ── Calendar ──
 async function renderCalendar(){
   const pad=n=>String(n).padStart(2,'0');const first=new Date(calYear,calMonth,1),last=new Date(calYear,calMonth+1,0);
   $('cal-label').textContent=`${MONTHS[calMonth]} ${calYear}`;
@@ -467,6 +585,8 @@ async function renderCalendar(){
 }
 function calPrev(){if(--calMonth<0){calMonth=11;calYear--;}renderCalendar();}
 function calNext(){if(++calMonth>11){calMonth=0;calYear++;}renderCalendar();}
+
+// ── Notifications ──
 async function loadNotifBadge(){const d=await api('GET','/notifications');const b=$('notif-badge');if(d.unread>0){b.textContent=d.unread;b.classList.remove('hidden');}else b.classList.add('hidden');}
 async function loadNotifications(){
   const d=await api('GET','/notifications');const b=$('notif-badge');if(d.unread>0){b.textContent=d.unread;b.classList.remove('hidden');}else b.classList.add('hidden');
@@ -475,6 +595,8 @@ async function loadNotifications(){
 function readNotif(id,el){api('PUT','/notifications/'+id+'/read');el.classList.remove('unread');loadNotifBadge();}
 function markAllRead(){api('PUT','/notifications/read-all').then(loadNotifications);}
 function toggleNotifPanel(){$('notif-panel').classList.toggle('open');const open=$('notif-panel').classList.contains('open');$('notif-backdrop').style.display=open?'block':'none';if(open)loadNotifications();}
+
+// ── Settings ──
 async function loadSettings(){
   const s=await api('GET','/settings');$('s-r1').value=s.reminder_days_before||'7';$('s-r2').value=s.reminder_days_before_2||'1';$('s-email-on').checked=s.email_enabled==='true';$('s-smtp-host').value=s.smtp_host||'';$('s-smtp-port').value=s.smtp_port||'587';$('s-smtp-user').value=s.smtp_user||'';$('s-owner-name').value=s.owner_name||'';$('s-owner-email').value=s.owner_email||'';onToggleEmail();
 }
@@ -485,7 +607,10 @@ async function testEmail(){try{await api('POST','/settings/test-email');flash('m
 async function triggerReminders(){const r=await api('POST','/reminders/trigger');flash('msg-general',`Done! ${r.reminders_created} reminder notification(s) created.`);loadNotifBadge();}
 async function saveProfile(){try{await api('PUT','/auth/profile',{name:$('s-name').value,email:$('s-acc-email').value});ME.name=$('s-name').value;ME.email=$('s-acc-email').value;$('user-name').textContent=ME.name;$('user-email').textContent=ME.email;$('user-avatar').textContent=ME.name[0].toUpperCase();flash('msg-profile','Profile updated!');}catch(e){flash('msg-profile',e.message,'error');}}
 async function changePassword(){const np=$('s-new-pwd').value,cp=$('s-cnf-pwd').value;if(np!==cp){flash('msg-pwd','Passwords do not match','error');return;}try{await api('PUT','/auth/password',{current:$('s-cur-pwd').value,newPassword:np});$('s-cur-pwd').value=$('s-new-pwd').value=$('s-cnf-pwd').value='';flash('msg-pwd','Password changed successfully!');}catch(e){flash('msg-pwd',e.message,'error');}}
-function ico(name){const paths={edit:`<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>`,delete:`<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`,eye:`<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>`,'add-circle':`<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>`};return paths[name]||'';}
+
+// ── Icons ──
+function ico(name){const paths={edit:`<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>`,delete:`<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`,eye:`<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>`};return paths[name]||'';}
+
 window.addEventListener('resize',()=>{const t=$('sidebar-toggle');if(window.innerWidth<=768)t.style.display='flex';else{t.style.display='none';$('sidebar').classList.remove('open');}});
 if(window.innerWidth<=768)$('sidebar-toggle').style.display='flex';
 if(TOKEN)bootApp();
