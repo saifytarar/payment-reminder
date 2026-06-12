@@ -317,7 +317,7 @@ textarea{resize:vertical;min-height:75px}
           </div>
           <button class="btn btn-primary" onclick="openInvoiceModal()"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>Create Invoice</button>
         </div>
-        <div class="card"><div class="table-wrap"><table><thead><tr><th>Invoice ID</th><th>Customer</th><th>Amount</th><th>Date</th><th>Due Date</th><th>Status</th><th>Actions</th></tr></thead><tbody id="inv-tbody"><tr class="empty-row"><td colspan="7">Loading…</td></tr></tbody></table></div></div>
+        <div class="card"><div class="table-wrap"><table><thead><tr><th>Invoice ID</th><th>Customer</th><th>Amount</th><th>Date</th><th>Due Date</th><th>Status</th><th>Actions</th></tr></thead><tbody id="invoices-tbody"><tr class="empty-row"><td colspan="7">Loading…</td></tr></tbody></table></div></div>
       </section>
     </div>
   </main>
@@ -345,6 +345,18 @@ textarea{resize:vertical;min-height:75px}
       <div class="form-group"><label>Status</label><select id="inv-status"><option value="Draft">Draft</option><option value="Sent">Sent</option><option value="Paid">Paid</option></select></div>
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-invoice')">Cancel</button><button class="btn btn-primary" onclick="saveInvoice()">Save Invoice</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-invoice-view">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header">
+      <h3 id="inv-view-title">Invoice</h3>
+      <button class="btn-icon" onclick="closeModal('modal-invoice-view')">&#215;</button>
+    </div>
+    <div class="modal-body" id="inv-view-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-invoice-view')">Close</button>
+    </div>
   </div>
 </div>
 <div class="modal-overlay" id="modal-customer">
