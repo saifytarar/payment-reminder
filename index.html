@@ -348,15 +348,13 @@ textarea{resize:vertical;min-height:75px}
   </div>
 </div>
 <div class="modal-overlay" id="modal-invoice-view">
-  <div class="modal" style="max-width:600px">
+  <div class="modal" style="max-width:700px">
     <div class="modal-header">
       <h3 id="inv-view-title">Invoice</h3>
       <button class="btn-icon" onclick="closeModal('modal-invoice-view')">&#215;</button>
     </div>
     <div class="modal-body" id="inv-view-body"></div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modal-invoice-view')">Close</button>
-    </div>
+    <div class="modal-footer" id="inv-view-actions" style="flex-wrap:wrap;gap:.5rem"></div>
   </div>
 </div>
 <div class="modal-overlay" id="modal-customer">
@@ -760,27 +758,103 @@ async function saveInvoice() {
 
 async function viewInvoice(id) {
   const inv = await api('GET', `/invoices/${id}`);
+  window._currentInvoice = inv;
   const stColors = {Draft:'var(--warning)',Sent:'var(--info)',Paid:'var(--success)'};
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  const dayStr = now.toLocaleDateString('en-US',{weekday:'long'});
   $('inv-view-title').textContent = inv.invoice_id;
   $('inv-view-body').innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-      <div><strong>Customer:</strong><br>${inv.customer_name}${inv.customer_company?' &mdash; '+inv.customer_company:''}</div>
-      <div><strong>Status:</strong><br><span style="background:${stColors[inv.status]||'#999'};color:#fff;padding:2px 10px;border-radius:20px;font-size:.8rem">${inv.status}</span></div>
-      <div><strong>Invoice Date:</strong><br>${inv.invoice_date||'-'}</div>
-      <div><strong>Due Date:</strong><br>${inv.due_date||'-'}</div>
-      <div><strong>Amount:</strong><br><span style="font-size:1.3rem;font-weight:700;color:var(--primary)">${fmtAmt(inv.amount)}</span></div>
+    <div id="invoice-print-area" style="background:#fff;border:1px solid #e2e2e2;border-radius:8px;padding:1.5rem">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid var(--primary);padding-bottom:1rem;margin-bottom:1rem">
+        <div>
+          <div style="font-size:1.6rem;font-weight:800;color:var(--primary);letter-spacing:1px">COUNTX</div>
+          <div style="font-size:.8rem;color:var(--text-muted)">Customer Payment Invoice</div>
+        </div>
+        <div style="text-align:right;font-size:.85rem">
+          <div>${dayStr}</div>
+          <div>${dateStr}</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+        <div><strong>From:</strong><br>Saif Ullah<br>COUNTX</div>
+        <div style="text-align:right"><strong>To:</strong><br>${inv.customer_name}${inv.customer_company?'<br>'+inv.customer_company:''}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;font-size:.9rem">
+        <div><strong>Invoice ID:</strong> ${inv.invoice_id}</div>
+        <div style="text-align:right"><strong>Status:</strong> <span style="background:${stColors[inv.status]||'#999'};color:#fff;padding:2px 10px;border-radius:20px;font-size:.8rem">${inv.status}</span></div>
+        <div><strong>Invoice Date:</strong> ${inv.invoice_date||'-'}</div>
+        <div style="text-align:right"><strong>Due Date:</strong> ${inv.due_date||'-'}</div>
+      </div>
+      <div style="margin-bottom:1rem">
+        <strong style="display:block;margin-bottom:.4rem">Services Provided / Details:</strong>
+        <textarea id="inv-content-textarea" style="width:100%;min-height:100px;padding:.6rem;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:.9rem;resize:vertical">${inv.content||''}</textarea>
+      </div>
+      <div style="text-align:right;margin-bottom:2rem">
+        <span style="font-size:.85rem;color:var(--text-muted)">Total Amount</span><br>
+        <span style="font-size:1.5rem;font-weight:800;color:var(--primary)">${fmtAmt(inv.amount)}</span>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:2rem">
+        <div style="text-align:center">
+          <div style="border-bottom:1px solid #333;width:200px;margin-bottom:.3rem">&nbsp;</div>
+          <div style="font-weight:700">Saif Ullah</div>
+          <div style="font-size:.8rem;color:var(--text-muted)">COUNTX</div>
+        </div>
+      </div>
     </div>
-    <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:1rem;white-space:pre-wrap;font-family:monospace;font-size:.88rem;min-height:80px">${inv.content||'<em style="color:var(--text-muted)">No content</em>'}</div>
   `;
   const actions = $('inv-view-actions');
   let btns = `<button class="btn btn-ghost" onclick="closeModal('modal-invoice-view')">Close</button>`;
+  btns += ` <button class="btn btn-primary" onclick="saveInvoiceContent(${inv.id})">Save Changes</button>`;
   if (inv.status==='Draft') btns += ` <button class="btn btn-ghost" onclick="closeModal('modal-invoice-view');openInvoiceModal(${inv.id})">Edit</button>`;
   if (inv.status!=='Paid') btns += ` <button class="btn btn-primary" onclick="markInvoice(${inv.id},'Paid')">Mark as Paid</button>`;
   if (inv.status==='Draft') btns += ` <button class="btn" style="background:var(--info);color:#fff" onclick="markInvoice(${inv.id},'Sent')">Mark as Sent</button>`;
   if (inv.whatsapp_consent) btns += ` <button class="btn" style="background:#25D366;color:#fff" onclick="sendWhatsApp(${inv.id})">Send via WhatsApp</button>`;
+  btns += ` <button class="btn" style="background:#444;color:#fff" onclick="downloadInvoicePDF()">Download as PDF</button>`;
   btns += ` <button class="btn" style="background:var(--danger);color:#fff" onclick="deleteInvoice(${inv.id})">Delete</button>`;
   actions.innerHTML = btns;
   openModal('modal-invoice-view');
+}
+
+async function saveInvoiceContent(id) {
+  const ta = $('inv-content-textarea');
+  const content = ta ? ta.value : '';
+  const inv = window._currentInvoice || {};
+  try {
+    await api('PUT', `/invoices/${id}`, {
+      customer_id: inv.customer_id,
+      content: content,
+      amount: inv.amount,
+      invoice_date: inv.invoice_date,
+      due_date: inv.due_date,
+      status: inv.status
+    });
+    inv.content = content;
+    alert('Invoice content saved.');
+  } catch (e) {
+    alert('Failed to save: ' + (e.message || e));
+  }
+}
+
+function downloadInvoicePDF() {
+  const area = document.getElementById('invoice-print-area');
+  if (!area) return;
+  const ta = area.querySelector('#inv-content-textarea');
+  const clone = area.cloneNode(true);
+  const cloneTa = clone.querySelector('#inv-content-textarea');
+  if (cloneTa && ta) {
+    const div = document.createElement('div');
+    div.style.cssText = ta.getAttribute('style') + ';white-space:pre-wrap';
+    div.textContent = ta.value;
+    cloneTa.replaceWith(div);
+  }
+  const w = window.open('', '_blank');
+  if (!w) { alert('Please allow popups to download the PDF.'); return; }
+  w.document.write(`<!DOCTYPE html><html><head><title>Invoice</title>
+    <style>body{font-family:Arial,Helvetica,sans-serif;padding:2rem;color:#1a1a2e;background:#fff}
+    @media print{body{padding:0}}</style></head><body>${clone.outerHTML}</body></html>`);
+  w.document.close();
+  setTimeout(() => { w.focus(); w.print(); }, 350);
 }
 
 async function markInvoice(id, status) {
