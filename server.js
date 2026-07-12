@@ -6,7 +6,7 @@ const nodemailer = require('nodemailer');
 const cron = require('node-cron');
 const path = require('path');
 const fs = require('fs');
-const { pool, queries, calcNextDue, initDb } = require('./database');
+const { pool, queries, calcNextDue, computeDueCycles, initDb } = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -117,11 +117,19 @@ res.json({ success: true });
 
 app.get('/api/dashboard', auth, async (req, res) => {
 try {
-res.json({
-stats: await queries.getDashboardStats(),
-upcoming: await queries.getUpcomingPayments(),
-overdue: await queries.getOverduePayments(),
+const today = new Date().toISOString().split('T')[0];
+const stats = await queries.getDashboardStats();
+const upcoming = await queries.getUpcomingPayments();
+let totalOverdue = 0;
+const overdue = (await queries.getOverduePayments()).map(c => {
+const { cycles } = computeDueCycles(c.next_due_date, c.payment_frequency, c.frequency_value, today);
+const n = Math.max(cycles, 1);
+const total = (parseFloat(c.amount) || 0) * n;
+totalOverdue += total;
+return { ...c, cycles_overdue: n, total_due: +total.toFixed(2) };
 });
+stats.total_overdue_amount = +totalOverdue.toFixed(2);
+res.json({ stats, upcoming, overdue });
 } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -190,21 +198,41 @@ app.post('/api/customers/:id/mark-paid', auth, async (req, res) => {
 try {
 const customer = await queries.getCustomerById(req.params.id);
 if (!customer) return res.status(404).json({ error: 'Not found' });
-const paymentDate = req.body.payment_date || new Date().toISOString().split('T')[0];
-const amount = parseFloat(req.body.amount) || customer.payment_amount;
-const next = calcNextDue(paymentDate, customer.payment_frequency, customer.frequency_value || 1);
+const today = new Date().toISOString().split('T')[0];
+const freq = customer.payment_frequency;
+const val = customer.frequency_value || 1;
+const settleAll = req.body.all === true || req.body.all === 'true';
+
+// How many scheduled cycles to clear. The due date advances along the schedule
+// (e.g. the 10th of each month) — NOT from the date the button is clicked.
+let cyclesToClear = 1;
+if (settleAll) {
+const { cycles } = computeDueCycles(customer.next_due_date, freq, val, today);
+cyclesToClear = Math.max(cycles, 1);
+}
+
+let dueDate = customer.next_due_date;
+let lastInsertId = null;
+for (let i = 0; i < cyclesToClear; i++) {
+const next = calcNextDue(dueDate, freq, val);
+const amount = (!settleAll && req.body.amount) ? parseFloat(req.body.amount) : (parseFloat(customer.payment_amount) || 0);
+const payDate = settleAll ? dueDate : (req.body.payment_date || today);
 const r = await queries.createPayment(
-customer.id, amount, paymentDate,
-customer.payment_frequency, customer.frequency_value || 1,
-next, 'paid', req.body.notes || ''
+customer.id, amount, payDate, freq, val, next, 'paid',
+req.body.notes || (settleAll ? `Cycle due ${dueDate}` : '')
 );
-await queries.updateCustomerNextDue(next, customer.id);
+lastInsertId = r.insertId;
+dueDate = next; // advance one cycle along the schedule
+}
+await queries.updateCustomerNextDue(dueDate, customer.id);
 await queries.createNotification(
 'payment_received',
-`Payment of ${amount} received from ${customer.name}. Next due: ${next}`,
-r.insertId, customer.id
+cyclesToClear > 1
+? `${cyclesToClear} payments settled for ${customer.name}. Next due: ${dueDate}`
+: `Payment received from ${customer.name}. Next due: ${dueDate}`,
+lastInsertId, customer.id
 );
-res.json({ success: true, next_due_date: next });
+res.json({ success: true, next_due_date: dueDate, cycles_paid: cyclesToClear });
 } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -216,7 +244,13 @@ res.json(await queries.getDueCustomers());
 
 app.get('/api/overdue-payments', auth, async (req, res) => {
 try {
-res.json(await queries.getOverdueCustomers());
+const today = new Date().toISOString().split('T')[0];
+const list = await queries.getOverdueCustomers();
+res.json(list.map(c => {
+const { cycles, dueDates } = computeDueCycles(c.next_due_date, c.payment_frequency, c.frequency_value, today);
+const n = Math.max(cycles, 1);
+return { ...c, cycles_overdue: n, total_due: +(((parseFloat(c.payment_amount) || 0) * n)).toFixed(2), due_dates: dueDates };
+}));
 } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -340,6 +374,73 @@ res.json({ success: true });
 } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.post('/api/invoices/:id/send-whatsapp', auth, async (req, res) => {
+try {
+const s = {};
+(await queries.getAllSettings()).forEach(r => { s[r.key] = r.value; });
+if (s.wa_api_enabled !== 'true') return res.status(400).json({ error: 'WhatsApp API is not enabled in Settings.' });
+if (!s.wa_phone_number_id || !s.wa_access_token) return res.status(400).json({ error: 'WhatsApp API is not configured (Phone Number ID / token missing).' });
+
+const inv = await queries.getInvoiceById(req.params.id);
+if (!inv) return res.status(404).json({ error: 'Invoice not found' });
+let phone = String(inv.customer_phone || '').replace(/[^0-9]/g, '');
+if (!phone) return res.status(400).json({ error: 'No phone number saved for this customer.' });
+if (phone.startsWith('0')) phone = '92' + phone.slice(1);
+
+const { image_base64 } = req.body;
+if (!image_base64) return res.status(400).json({ error: 'Missing invoice image.' });
+
+const version = s.wa_api_version || 'v21.0';
+const base = `https://graph.facebook.com/${version}`;
+
+// 1) Upload the invoice image to WhatsApp media
+const b64 = String(image_base64).replace(/^data:image\/\w+;base64,/, '');
+const buf = Buffer.from(b64, 'base64');
+const form = new FormData();
+form.append('messaging_product', 'whatsapp');
+form.append('file', new Blob([buf], { type: 'image/png' }), `${inv.invoice_id}.png`);
+const upRes = await fetch(`${base}/${s.wa_phone_number_id}/media`, {
+method: 'POST',
+headers: { Authorization: `Bearer ${s.wa_access_token}` },
+body: form,
+});
+const upJson = await upRes.json();
+if (!upRes.ok || !upJson.id) return res.status(502).json({ error: 'Media upload failed: ' + JSON.stringify(upJson.error || upJson) });
+
+// 2) Send the approved template with the image header + body variables
+const amountStr = 'Rs ' + Number(inv.amount || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 });
+const payload = {
+messaging_product: 'whatsapp',
+to: phone,
+type: 'template',
+template: {
+name: s.wa_template_name || 'invoice_notification',
+language: { code: s.wa_template_lang || 'en' },
+components: [
+{ type: 'header', parameters: [{ type: 'image', image: { id: upJson.id } }] },
+{ type: 'body', parameters: [
+{ type: 'text', text: String(inv.customer_name || '') },
+{ type: 'text', text: String(inv.invoice_id || '') },
+{ type: 'text', text: amountStr },
+{ type: 'text', text: String(inv.due_date || '-') },
+] },
+],
+},
+};
+const msgRes = await fetch(`${base}/${s.wa_phone_number_id}/messages`, {
+method: 'POST',
+headers: { Authorization: `Bearer ${s.wa_access_token}`, 'Content-Type': 'application/json' },
+body: JSON.stringify(payload),
+});
+const msgJson = await msgRes.json();
+if (!msgRes.ok) return res.status(502).json({ error: 'Send failed: ' + JSON.stringify(msgJson.error || msgJson) });
+
+if (inv.status === 'Draft') await queries.updateInvoiceStatus('Sent', inv.id);
+await queries.createNotification('info', `Invoice ${inv.invoice_id} sent to ${inv.customer_name} via WhatsApp`, null, inv.customer_id);
+res.json({ success: true, message_id: msgJson.messages && msgJson.messages[0] && msgJson.messages[0].id });
+} catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/calendar', auth, async (req, res) => {
 try {
 const { start, end } = req.query;
@@ -375,6 +476,7 @@ const rows = await queries.getAllSettings();
 const s = {};
 rows.forEach(r => { s[r.key] = r.value; });
 delete s.smtp_pass;
+delete s.wa_access_token;
 res.json(s);
 } catch (e) { res.status(500).json({ error: e.message }); }
 });

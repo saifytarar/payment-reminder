@@ -106,6 +106,8 @@ async function initDb() {
     const defaultSettings = {
       reminder_days_before: '7', reminder_days_before_2: '1', email_enabled: 'false',
       smtp_host: '', smtp_port: '587', smtp_user: '', smtp_pass: '', owner_email: '', owner_name: 'Business Owner',
+      wa_api_enabled: 'false', wa_phone_number_id: '', wa_access_token: '',
+      wa_template_name: 'invoice_notification', wa_template_lang: 'en', wa_api_version: 'v21.0',
     };
     for (const [key, value] of Object.entries(defaultSettings)) {
       await conn.query('INSERT IGNORE INTO settings (`key`, value) VALUES (?, ?)', [key, value]);
@@ -129,6 +131,23 @@ function calcNextDue(fromDate, frequency, frequencyValue = 1) {
     default: d.setMonth(d.getMonth() + 1);
   }
   return d.toISOString().split('T')[0];
+}
+
+// Count how many recurring cycles have already come due (up to and including today),
+// starting from a customer's next_due_date. Returns the count and the list of due dates.
+// Dates are compared as YYYY-MM-DD strings (lexicographic order == chronological order).
+function computeDueCycles(nextDueDate, frequency, frequencyValue = 1, todayStr) {
+  if (!nextDueDate) return { cycles: 0, dueDates: [] };
+  const today = todayStr || new Date().toISOString().split('T')[0];
+  const dueDates = [];
+  let d = String(nextDueDate).split('T')[0];
+  let guard = 0;
+  while (d <= today && guard < 600) {
+    dueDates.push(d);
+    d = calcNextDue(d, frequency, frequencyValue || 1);
+    guard++;
+  }
+  return { cycles: dueDates.length, dueDates };
 }
 
 const queries = {
@@ -202,7 +221,8 @@ const queries = {
   async getOverdueCustomers() {
     const [rows] = await pool.query(`
       SELECT *, 'overdue' as payment_status,
-        DATEDIFF(CURDATE(), next_due_date) as days_overdue
+        DATEDIFF(CURDATE(), next_due_date) as days_overdue,
+        (SELECT COUNT(*) FROM invoices i WHERE i.customer_id = customers.id AND i.status <> 'Paid') as open_invoice_count
       FROM customers WHERE payment_amount > 0 AND next_due_date IS NOT NULL AND next_due_date < CURDATE()
       ORDER BY next_due_date ASC
     `);
@@ -267,7 +287,7 @@ const queries = {
   async getOverduePayments() {
     const [rows] = await pool.query(`
       SELECT id, name as customer_name, company, phone, email,
-        payment_amount as amount, next_due_date, 'overdue' as status,
+        payment_amount as amount, next_due_date, payment_frequency, frequency_value, 'overdue' as status,
         DATEDIFF(CURDATE(), next_due_date) as days_overdue
       FROM customers WHERE payment_amount > 0 AND next_due_date IS NOT NULL AND next_due_date < CURDATE()
       ORDER BY next_due_date ASC
@@ -355,4 +375,4 @@ const queries = {
   },
 };
 
-module.exports = { pool, queries, calcNextDue, initDb };
+module.exports = { pool, queries, calcNextDue, computeDueCycles, initDb };
