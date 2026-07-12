@@ -149,6 +149,7 @@ textarea{resize:vertical;min-height:75px}
   .notif-panel{width:100%}
 }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -161,11 +162,10 @@ textarea{resize:vertical;min-height:75px}
     <p>Customer Payment Management System</p>
     <div id="login-error" class="alert alert-error hidden"></div>
     <form id="login-form">
-      <div class="form-group"><label>Username</label><input id="lu" type="text" placeholder="admin" required autocomplete="username"/></div>
+      <div class="form-group"><label>Username</label><input id="lu" type="text" placeholder="Enter username" required autocomplete="username"/></div>
       <div class="form-group"><label>Password</label><input id="lp" type="password" placeholder="••••••••" required autocomplete="current-password"/></div>
       <button type="submit" class="btn btn-primary w-full" style="justify-content:center;padding:.7rem;margin-top:.5rem">Sign In</button>
     </form>
-    <p class="text-sm text-muted" style="text-align:center;margin-top:1rem">Default: <strong>admin</strong> / <strong>admin123</strong></p>
   </div>
 </div>
 
@@ -249,6 +249,7 @@ textarea{resize:vertical;min-height:75px}
       <section class="page" id="page-payments">
         <div class="toolbar">
           <div class="filter-bar">
+            <select id="flt-customer" onchange="loadPayments()"><option value="">All Customers</option></select>
             <select id="flt-freq" onchange="loadPayments()"><option value="">All Frequencies</option><option value="monthly">Monthly</option><option value="bimonthly">Every 2 Months</option><option value="every4months">Every 4 Months</option><option value="every6months">Every 6 Months</option><option value="yearly">Yearly</option><option value="custom_days">Custom Days</option><option value="custom_months">Custom Months</option></select>
           </div>
           <span class="text-muted text-sm">Showing all received payments</span>
@@ -291,6 +292,14 @@ textarea{resize:vertical;min-height:75px}
                 <div class="form-row"><div class="form-group"><label>Your Name</label><input type="text" id="s-owner-name" placeholder="Business Owner"/></div><div class="form-group"><label>Send reminders to (your email)</label><input type="email" id="s-owner-email" placeholder="you@gmail.com"/></div></div>
               </div>
               <div class="flex gap-2" style="margin-top:.5rem"><button class="btn btn-primary" onclick="saveEmailSettings()">Save Email Settings</button><button class="btn btn-ghost" onclick="testEmail()">Send Test Email</button></div>
+            </div></div>
+            <div class="card"><div class="card-header"><h3>WhatsApp Business API (auto-send invoices)</h3></div><div class="card-body">
+              <div id="msg-wa"></div>
+              <p class="text-sm text-muted" style="margin-bottom:1rem;padding:.75rem;background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe">💬 Sends the invoice image straight to the customer's WhatsApp via Meta's Cloud API. Requires an approved <strong>invoice_notification</strong> template. Get the Phone Number ID &amp; token from your Meta app → WhatsApp → API Setup.</p>
+              <div class="form-group flex items-center gap-2"><label class="toggle"><input type="checkbox" id="s-wa-on"/><span class="toggle-slider"></span></label><span style="font-size:.9rem">Enable WhatsApp Cloud API sending</span></div>
+              <div class="form-row"><div class="form-group"><label>Phone Number ID</label><input type="text" id="s-wa-phone-id" placeholder="e.g. 965707529956306"/></div><div class="form-group"><label>Access Token</label><input type="password" id="s-wa-token" placeholder="Leave blank to keep current"/></div></div>
+              <div class="form-row"><div class="form-group"><label>Template Name</label><input type="text" id="s-wa-template" placeholder="invoice_notification"/></div><div class="form-group"><label>Template Language</label><input type="text" id="s-wa-lang" placeholder="en"/></div></div>
+              <div class="flex gap-2" style="margin-top:.5rem"><button class="btn btn-primary" onclick="saveWhatsAppSettings()">Save WhatsApp Settings</button></div>
             </div></div>
           </div>
           <div id="stab-account" class="hidden">
@@ -496,7 +505,7 @@ async function loadDashboard(){
   const d=await api('GET','/dashboard');
   $('stat-customers').textContent=d.stats.total_customers;$('stat-today').textContent=d.stats.due_today;$('stat-week').textContent=d.stats.due_in_7;$('stat-overdue').textContent=d.stats.overdue;
   $('dash-upcoming').innerHTML=d.upcoming.length?d.upcoming.slice(0,8).map(p=>`<tr><td><strong>${esc(p.customer_name)}</strong><br><small class="text-muted">${esc(p.company||'')}</small></td><td>${fmtAmt(p.amount)}</td><td>${fmtDate(p.next_due_date)}</td><td>${badge(p.status)}</td></tr>`).join(''):`<tr class="empty-row"><td colspan="4">No upcoming payments 🎉</td></tr>`;
-  $('dash-overdue').innerHTML=d.overdue.length?d.overdue.map(p=>`<tr><td><strong>${esc(p.customer_name)}</strong></td><td>${fmtAmt(p.amount)}</td><td>${fmtDate(p.next_due_date)}</td><td><button class="btn btn-sm btn-success" onclick="openMarkPaid(${p.id},'${esc(p.customer_name)}',${p.amount})">Mark Paid</button></td></tr>`).join(''):`<tr class="empty-row"><td colspan="4">No overdue payments 🎉</td></tr>`;
+  $('dash-overdue').innerHTML=d.overdue.length?d.overdue.map(p=>{const cyc=p.cycles_overdue||1;const tot=(p.total_due!=null)?p.total_due:p.amount;return `<tr><td><strong>${esc(p.customer_name)}</strong>${cyc>1?' <small class="text-muted">('+cyc+' cycles)</small>':''}</td><td>${fmtAmt(tot)}</td><td>${fmtDate(p.next_due_date)}</td><td><button class="btn btn-sm btn-success" onclick="openMarkPaid(${p.id},'${esc(p.customer_name)}',${p.amount})">Mark Paid</button></td></tr>`;}).join(''):`<tr class="empty-row"><td colspan="4">No overdue payments 🎉</td></tr>`;
 }
 
 // ── Customers ──
@@ -554,9 +563,74 @@ async function loadDuePayments(){
 }
 
 // ── Overdue Payments ──
+let OVERDUE_INFO={};
+// Human label for one billing cycle's period, derived from its due date + frequency.
+// monthly -> "March 2025"; multi-month -> "Jul – Dec 2024"; custom days -> a date range.
+function cyclePeriodLabel(dueStr,freq,fval){
+  const d=new Date(dueStr+'T00:00:00');
+  if(freq==='custom_days'){
+    const n=parseInt(fval)||1;
+    if(n<=1) return fmtDate(dueStr);
+    const e=new Date(d); e.setDate(e.getDate()+n-1);
+    const eStr=`${e.getFullYear()}-${String(e.getMonth()+1).padStart(2,'0')}-${String(e.getDate()).padStart(2,'0')}`;
+    return fmtDate(dueStr)+' – '+fmtDate(eStr);
+  }
+  const monthsBy={monthly:1,bimonthly:2,quarterly:3,every4months:4,every6months:6,yearly:12,custom_months:(parseInt(fval)||1)};
+  const m=monthsBy[freq]||1;
+  if(m===1) return MONTHS[d.getMonth()]+' '+d.getFullYear();
+  const e=new Date(d.getFullYear(),d.getMonth()+m-1,1);
+  const sM=MONTHS[d.getMonth()].slice(0,3),eM=MONTHS[e.getMonth()].slice(0,3);
+  return d.getFullYear()===e.getFullYear()?`${sM} – ${eM} ${e.getFullYear()}`:`${sM} ${d.getFullYear()} – ${eM} ${e.getFullYear()}`;
+}
+// "Rs 5,000/month", "Rs 5,000 per 6 months", etc.
+function rateLabel(freq,fval,amount){
+  const per={monthly:'/month',yearly:'/year',quarterly:' per quarter',bimonthly:' per 2 months',every4months:' per 4 months',every6months:' per 6 months',custom_days:` per ${parseInt(fval)||1} days`,custom_months:` per ${parseInt(fval)||1} months`};
+  return fmtAmt(amount)+(per[freq]||' per cycle');
+}
+// e.g. "Payment due for March 2025, April 2025 @ rate of Rs 5,000/month. Total: Rs 10,000 (2 cycles)."
+function buildOverdueDescription(c){
+  const dates=(c.due_dates&&c.due_dates.length)?c.due_dates:(c.next_due_date?[c.next_due_date]:[]);
+  if(!dates.length) return '';
+  const periods=dates.map(dt=>cyclePeriodLabel(dt,c.payment_frequency,c.frequency_value));
+  let s=`Payment due for ${periods.join(', ')} @ rate of ${rateLabel(c.payment_frequency,c.frequency_value,c.payment_amount)}.`;
+  if(dates.length>1) s+=` Total: ${fmtAmt((parseFloat(c.payment_amount)||0)*dates.length)} (${dates.length} cycles).`;
+  return s;
+}
+function openInvoiceFromOverdue(id){
+  const c=OVERDUE_INFO[id];
+  if(!c){ openInvoiceModal(null,{customer_id:id}); return; }
+  const total=(c.total_due!=null)?c.total_due:c.payment_amount;
+  openInvoiceModal(null,{customer_id:id,amount:total,description:buildOverdueDescription(c)});
+}
 async function loadOverduePayments(){
   const list=await api('GET','/overdue-payments');
-  $('overdue-tbody').innerHTML=list.length?list.map(c=>`<tr><td><strong>${esc(c.name)}</strong></td><td>${esc(c.company||'—')}</td><td>${esc(c.phone||'—')}</td><td>${fmtAmt(c.payment_amount)}</td><td>${fmtDate(c.next_due_date)}</td><td><span class="days-overdue">${c.days_overdue} day${c.days_overdue===1?'':'s'}</span></td><td style="white-space:nowrap"><button class="btn btn-sm btn-success" style="margin-right:.3rem" onclick="openMarkPaid(${c.id},'${esc(c.name)}',${c.payment_amount})">✓ Mark as Paid</button><button class="btn btn-sm btn-warning" onclick="sendReminder(${c.id},'${esc(c.name)}')">📩 Send Reminder</button></td></tr>`).join(''):`<tr class="empty-row"><td colspan="7">No overdue payments 🎉</td></tr>`;
+  OVERDUE_INFO={}; list.forEach(c=>{OVERDUE_INFO[c.id]=c;});
+  $('overdue-tbody').innerHTML=list.length?list.map(c=>{
+    const cycles = c.cycles_overdue || 1;
+    const total = (c.total_due != null) ? c.total_due : c.payment_amount;
+    const invoiceBtn = c.open_invoice_count > 0
+      ? `<button class="btn btn-sm" disabled style="opacity:.5;cursor:not-allowed" title="An open invoice already exists for this customer">🧾 Invoice Created</button>`
+      : `<button class="btn btn-sm btn-primary" onclick="openInvoiceFromOverdue(${c.id})">🧾 Create Invoice</button>`;
+    const settleBtn = cycles > 1
+      ? `<button class="btn btn-sm" style="background:#0ea5e9;color:#fff;margin-right:.3rem" onclick="settleAll(${c.id},'${esc(c.name)}',${cycles},${total})">💰 Settle All (${cycles})</button>`
+      : '';
+    const amtCell = cycles > 1
+      ? `<strong>${fmtAmt(total)}</strong><br><small class="text-muted">${cycles} cycles × ${fmtAmt(c.payment_amount)}</small>`
+      : `${fmtAmt(total)}`;
+    const dueCell = cycles > 1
+      ? `${fmtDate(c.next_due_date)}<br><small class="text-muted">oldest unpaid</small>`
+      : `${fmtDate(c.next_due_date)}`;
+    return `<tr><td><strong>${esc(c.name)}</strong></td><td>${esc(c.company||'—')}</td><td>${esc(c.phone||'—')}</td><td>${amtCell}</td><td>${dueCell}</td><td><span class="days-overdue">${c.days_overdue} day${c.days_overdue===1?'':'s'}</span></td><td style="white-space:nowrap"><button class="btn btn-sm btn-success" style="margin-right:.3rem" onclick="openMarkPaid(${c.id},'${esc(c.name)}',${c.payment_amount})">✓ Mark Paid (1)</button>${settleBtn}<button class="btn btn-sm btn-warning" style="margin-right:.3rem" onclick="sendReminder(${c.id},'${esc(c.name)}')">📩 Send Reminder</button>${invoiceBtn}</td></tr>`;
+  }).join(''):`<tr class="empty-row"><td colspan="7">No overdue payments 🎉</td></tr>`;
+}
+
+async function settleAll(id,name,cycles,total){
+  if(!confirm(`Settle ALL ${cycles} overdue cycles for ${name}?\n\nThis records ${cycles} payments totalling ${fmtAmt(total)} and moves the due date forward to the next upcoming cycle.`)) return;
+  try{
+    await api('POST','/customers/'+id+'/mark-paid',{all:true});
+    loadNotifBadge();
+    loadOverduePayments();
+  }catch(e){alert('Failed to settle: '+(e.message||e));}
 }
 
 function sendReminder(id,name){
@@ -595,7 +669,12 @@ async function submitMarkPaid(){
 
 // ── Payment History ──
 async function loadPayments(){
+  const custSel=$('flt-customer');const prevCust=custSel.value;
+  const customers=await api('GET','/customers');
+  custSel.innerHTML='<option value="">All Customers</option>'+customers.map(c=>`<option value="${c.id}">${esc(c.name)}${c.company?' ('+esc(c.company)+')':''}</option>`).join('');
+  custSel.value=prevCust;
   let url='/payments?';const f=$('flt-freq').value;if(f)url+=`frequency=${f}&`;
+  const cid=custSel.value;if(cid)url+=`customer_id=${cid}&`;
   const list=await api('GET',url);
   $('pay-tbody').innerHTML=list.length?list.map(p=>`<tr><td><strong>${esc(p.customer_name)}</strong><br><small class="text-muted">${esc(p.customer_company||'')}</small></td><td>${esc(p.customer_phone)||'—'}</td><td>${fmtAmt(p.amount)}</td><td>${fmtDate(p.payment_date)}</td><td>${fmtFreq(p.frequency,p.frequency_value)}</td><td>${fmtDate(p.next_due_date)}</td><td style="white-space:nowrap"><button class="btn-icon" title="Delete" style="color:var(--danger)" onclick="confirmDel('payment',${p.id},'this payment record')">${ico('delete')}</button></td></tr>`).join(''):`<tr class="empty-row"><td colspan="7">No payment records yet. Mark payments as paid to build history.</td></tr>`;
 }
@@ -638,12 +717,13 @@ function toggleNotifPanel(){$('notif-panel').classList.toggle('open');const open
 
 // ── Settings ──
 async function loadSettings(){
-  const s=await api('GET','/settings');$('s-r1').value=s.reminder_days_before||'7';$('s-r2').value=s.reminder_days_before_2||'1';$('s-email-on').checked=s.email_enabled==='true';$('s-smtp-host').value=s.smtp_host||'';$('s-smtp-port').value=s.smtp_port||'587';$('s-smtp-user').value=s.smtp_user||'';$('s-owner-name').value=s.owner_name||'';$('s-owner-email').value=s.owner_email||'';onToggleEmail();
+  const s=await api('GET','/settings');$('s-r1').value=s.reminder_days_before||'7';$('s-r2').value=s.reminder_days_before_2||'1';$('s-email-on').checked=s.email_enabled==='true';$('s-smtp-host').value=s.smtp_host||'';$('s-smtp-port').value=s.smtp_port||'587';$('s-smtp-user').value=s.smtp_user||'';$('s-owner-name').value=s.owner_name||'';$('s-owner-email').value=s.owner_email||'';$('s-wa-on').checked=s.wa_api_enabled==='true';$('s-wa-phone-id').value=s.wa_phone_number_id||'';$('s-wa-template').value=s.wa_template_name||'invoice_notification';$('s-wa-lang').value=s.wa_template_lang||'en';onToggleEmail();
 }
 function onToggleEmail(){const on=$('s-email-on').checked;$('email-fields').style.opacity=on?'1':'.5';$('email-fields').style.pointerEvents=on?'all':'none';}
 async function saveGeneralSettings(){await api('PUT','/settings',{reminder_days_before:$('s-r1').value,reminder_days_before_2:$('s-r2').value});flash('msg-general','Settings saved!');}
 async function saveEmailSettings(){const body={email_enabled:$('s-email-on').checked?'true':'false',smtp_host:$('s-smtp-host').value,smtp_port:$('s-smtp-port').value,smtp_user:$('s-smtp-user').value,owner_name:$('s-owner-name').value,owner_email:$('s-owner-email').value};if($('s-smtp-pass').value)body.smtp_pass=$('s-smtp-pass').value;await api('PUT','/settings',body);flash('msg-email','Email settings saved!');}
 async function testEmail(){try{await api('POST','/settings/test-email');flash('msg-email','Test email sent! Check your inbox.');}catch(e){flash('msg-email',e.message,'error');}}
+async function saveWhatsAppSettings(){const body={wa_api_enabled:$('s-wa-on').checked?'true':'false',wa_phone_number_id:$('s-wa-phone-id').value.trim(),wa_template_name:$('s-wa-template').value.trim()||'invoice_notification',wa_template_lang:$('s-wa-lang').value.trim()||'en'};if($('s-wa-token').value.trim())body.wa_access_token=$('s-wa-token').value.trim();await api('PUT','/settings',body);$('s-wa-token').value='';flash('msg-wa','WhatsApp settings saved!');}
 async function triggerReminders(){const r=await api('POST','/reminders/trigger');flash('msg-general',`Done! ${r.reminders_created} reminder notification(s) created.`);loadNotifBadge();}
 async function saveProfile(){try{await api('PUT','/auth/profile',{name:$('s-name').value,email:$('s-acc-email').value});ME.name=$('s-name').value;ME.email=$('s-acc-email').value;$('user-name').textContent=ME.name;$('user-email').textContent=ME.email;$('user-avatar').textContent=ME.name[0].toUpperCase();flash('msg-profile','Profile updated!');}catch(e){flash('msg-profile',e.message,'error');}}
 async function changePassword(){const np=$('s-new-pwd').value,cp=$('s-cnf-pwd').value;if(np!==cp){flash('msg-pwd','Passwords do not match','error');return;}try{await api('PUT','/auth/password',{current:$('s-cur-pwd').value,newPassword:np});$('s-cur-pwd').value=$('s-new-pwd').value=$('s-cnf-pwd').value='';flash('msg-pwd','Password changed successfully!');}catch(e){flash('msg-pwd',e.message,'error');}}
@@ -688,7 +768,7 @@ function renderInvoicesTable(invoices){
   tb.innerHTML=invoices.map(inv=>{
     const statusBadge=invBadge(inv.status);
     const waBtn=inv.whatsapp_consent
-      ? `<a class="btn btn-sm" style="background:#25d366;color:#fff;text-decoration:none;padding:.25rem .6rem;border-radius:6px;font-size:.8rem" href="https://wa.me/${normalizePhone(inv.customer_phone||'')}?text=${encodeURIComponent('Invoice '+inv.invoice_id+' for Rs '+inv.amount+' is due on '+inv.due_date)}" target="_blank">WhatsApp</a>`
+      ? `<button class="btn btn-sm" style="background:#25d366;color:#fff;padding:.25rem .6rem;border-radius:6px;font-size:.8rem" onclick="whatsappFromTable(${inv.id})">WhatsApp</button>`
       : '';
     const markBtn=inv.status!=='Paid'
       ? `<button class="btn btn-sm btn-success" onclick="updateInvoiceStatus(${inv.id},'${inv.status==='Draft'?'Sent':'Paid'}')">${inv.status==='Draft'?'Mark Sent':'Mark Paid'}</button>`
@@ -701,7 +781,7 @@ function renderInvoicesTable(invoices){
       <td>${inv.due_date||''}</td>
       <td>${statusBadge}</td>
       <td style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center">
-        <button class="btn btn-sm btn-ghost" onclick="viewInvoice(${inv.id})">View</button>
+        <button class="btn btn-sm btn-ghost" onclick="viewInvoice(${inv.id})">👁 Preview</button>
         <button class="btn btn-sm btn-ghost" onclick="openInvoiceModal(${inv.id})">Edit</button>
         ${markBtn}
         <button class="btn btn-sm btn-danger" onclick="confirmDelInvoice(${inv.id},'${esc(inv.invoice_id)}')">Delete</button>
@@ -711,7 +791,7 @@ function renderInvoicesTable(invoices){
   }).join('');
 }
 
-async function openInvoiceModal(id=null) {
+async function openInvoiceModal(id=null, prefill=null) {
   $('inv-modal-title').textContent = id ? 'Edit Invoice' : 'Create Invoice';
   $('inv-id').value = id||'';
   $('inv-err').classList.add('hidden');
@@ -731,6 +811,15 @@ async function openInvoiceModal(id=null) {
     $('inv-due-date').value = inv.due_date||'';
     $('inv-content').value = inv.content||'';
     $('inv-status').value = inv.status||'Draft';
+  } else if (prefill) {
+    if (prefill.customer_id != null) $('inv-customer').value = prefill.customer_id;
+    if (prefill.amount != null) $('inv-amount').value = prefill.amount;
+    const cust = customers.find(x => x.id == prefill.customer_id);
+    if (cust && cust.next_due_date) $('inv-due-date').value = cust.next_due_date;
+    const parts = [];
+    if (prefill.description) parts.push(prefill.description);
+    if (cust && cust.notes) parts.push(cust.notes);
+    if (parts.length) $('inv-content').value = parts.join('\n\n');
   }
   openModal('modal-invoice');
 }
@@ -751,7 +840,7 @@ async function saveInvoice() {
     if (id) { await api('PUT', `/invoices/${id}`, body); }
     else { await api('POST', '/invoices', body); }
     closeModal('modal-invoice');
-    loadInvoices();
+    if (id) loadInvoices(); else navigate('invoices');
   } catch(e) { $('inv-err').textContent=e.message||'Error saving invoice'; $('inv-err').classList.remove('hidden'); }
 }
 
@@ -764,34 +853,54 @@ async function viewInvoice(id) {
   const dayStr = now.toLocaleDateString('en-US',{weekday:'long'});
   $('inv-view-title').textContent = inv.invoice_id;
   $('inv-view-body').innerHTML = `
-    <div id="invoice-print-area" style="background:#fff;border:1px solid #e2e2e2;border-radius:8px;padding:1.5rem">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid var(--primary);padding-bottom:1rem;margin-bottom:1rem">
+    <div id="invoice-print-area" style="background:#fff;color:#1a1a2e;border:1px solid #e5e7eb;border-radius:10px;padding:2rem;max-width:760px;margin:0 auto;font-family:Arial,Helvetica,sans-serif">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.25rem">
         <div>
-          <div style="font-size:1.6rem;font-weight:800;color:var(--primary);letter-spacing:1px">COUNTX</div>
-          <div style="font-size:.8rem;color:var(--text-muted)">Customer Payment Invoice</div>
+          <div style="font-size:1.9rem;font-weight:800;color:#4f46e5;letter-spacing:1px">COUNTX</div>
+          <div style="font-size:.82rem;color:#6b7280;margin-top:2px">Customer Payment Invoice</div>
         </div>
-        <div style="text-align:right;font-size:.85rem">
-          <div>${dayStr}</div>
-          <div>${dateStr}</div>
+        <div style="text-align:right">
+          <div style="font-size:1.5rem;font-weight:800;color:#111827;letter-spacing:2px">INVOICE</div>
+          <div style="font-size:.85rem;color:#6b7280;margin-top:4px">${inv.invoice_id}</div>
+          <div style="margin-top:6px"><span style="background:${stColors[inv.status]||'#999'};color:#fff;padding:3px 12px;border-radius:20px;font-size:.72rem;font-weight:700;letter-spacing:.5px">${(inv.status||'').toUpperCase()}</span></div>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
-        <div><strong>From:</strong><br>Saif Ullah<br>COUNTX</div>
-        <div style="text-align:right"><strong>To:</strong><br>${inv.customer_name}${inv.customer_company?'<br>'+inv.customer_company:''}</div>
+      <div style="height:3px;background:linear-gradient(90deg,#4f46e5,#a5b4fc);border-radius:3px;margin-bottom:1.5rem"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
+        <div>
+          <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:1px;color:#9ca3af;margin-bottom:.35rem">From</div>
+          <div style="font-weight:700">Saif Ullah</div>
+          <div style="color:#6b7280;font-size:.9rem">COUNTX</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:1px;color:#9ca3af;margin-bottom:.35rem">Bill To</div>
+          <div style="font-weight:700">${esc(inv.customer_name||'')}</div>
+          ${inv.customer_company?'<div style="color:#6b7280;font-size:.9rem">'+esc(inv.customer_company)+'</div>':''}
+          ${inv.customer_phone?'<div style="color:#6b7280;font-size:.9rem">'+esc(inv.customer_phone)+'</div>':''}
+        </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;font-size:.9rem">
-        <div><strong>Invoice ID:</strong> ${inv.invoice_id}</div>
-        <div style="text-align:right"><strong>Status:</strong> <span style="background:${stColors[inv.status]||'#999'};color:#fff;padding:2px 10px;border-radius:20px;font-size:.8rem">${inv.status}</span></div>
-        <div><strong>Invoice Date:</strong> ${inv.invoice_date||'-'}</div>
-        <div style="text-align:right"><strong>Due Date:</strong> ${inv.due_date||'-'}</div>
+      <div style="display:flex;justify-content:space-between;background:#f9fafb;border:1px solid #eef0f3;border-radius:8px;padding:.8rem 1rem;margin-bottom:1.5rem;font-size:.88rem">
+        <div><span style="color:#9ca3af">Invoice Date</span><br><strong>${inv.invoice_date||'-'}</strong></div>
+        <div style="text-align:right"><span style="color:#9ca3af">Due Date</span><br><strong>${inv.due_date||'-'}</strong></div>
       </div>
-      <div style="margin-bottom:1rem">
-        <strong style="display:block;margin-bottom:.4rem">Services Provided / Details:</strong>
-        <textarea id="inv-content-textarea" style="width:100%;min-height:100px;padding:.6rem;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:.9rem;resize:vertical">${inv.content||''}</textarea>
+      <div style="margin-bottom:1.5rem">
+        <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:1px;color:#9ca3af;margin-bottom:.5rem">Description</div>
+        <div style="white-space:pre-wrap;min-height:60px;padding:.85rem 1rem;border:1px solid #eef0f3;border-radius:8px;background:#fff;font-size:.92rem;line-height:1.5">${esc(inv.content||'')||'<span style="color:#b0b4ba">No description provided.</span>'}</div>
       </div>
-      <div style="text-align:right;margin-bottom:2rem">
-        <span style="font-size:.85rem;color:var(--text-muted)">Total Amount</span><br>
-        <span style="font-size:1.5rem;font-weight:800;color:var(--primary)">${fmtAmt(inv.amount)}</span>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:1.5rem">
+        <div style="background:#4f46e5;color:#fff;border-radius:10px;padding:.9rem 1.5rem;text-align:right;min-width:220px">
+          <div style="font-size:.76rem;opacity:.85;letter-spacing:.5px">TOTAL AMOUNT</div>
+          <div style="font-size:1.6rem;font-weight:800;margin-top:2px">${fmtAmt(inv.amount)}</div>
+        </div>
+      </div>
+      <div style="border:1px solid #e5e7eb;border-radius:8px;padding:1rem 1.25rem;margin-bottom:1rem;background:#fbfbfd">
+        <div style="font-size:.76rem;text-transform:uppercase;letter-spacing:1px;color:#4f46e5;font-weight:700;margin-bottom:.6rem">For Online Payment</div>
+        <table style="width:100%;border-collapse:collapse;font-size:.9rem">
+          <tr><td style="padding:.25rem 0;color:#6b7280;width:120px">Meezan</td><td style="padding:.25rem 0;font-weight:700;letter-spacing:.5px">0204 0100444043</td></tr>
+          <tr><td style="padding:.25rem 0;color:#6b7280">HBL</td><td style="padding:.25rem 0;font-weight:700;letter-spacing:.5px">2297 7000487803</td></tr>
+          <tr><td style="padding:.25rem 0;color:#6b7280">Jazz Cash</td><td style="padding:.25rem 0;font-weight:700;letter-spacing:.5px">0300 4076533</td></tr>
+          <tr><td style="padding:.5rem 0 0;color:#6b7280">Title</td><td style="padding:.5rem 0 0;font-weight:700">Saif Ullah</td></tr>
+        </table>
       </div>
       <div style="display:flex;justify-content:flex-end;margin-top:2rem">
         <div style="text-align:center">
@@ -805,8 +914,7 @@ async function viewInvoice(id) {
   `;
   const actions = $('inv-view-actions');
   let btns = `<button class="btn btn-ghost" onclick="closeModal('modal-invoice-view')">Close</button>`;
-  btns += ` <button class="btn btn-primary" onclick="saveInvoiceContent(${inv.id})">Save Changes</button>`;
-  if (inv.status==='Draft') btns += ` <button class="btn btn-ghost" onclick="closeModal('modal-invoice-view');openInvoiceModal(${inv.id})">Edit</button>`;
+  if (inv.status!=='Paid') btns += ` <button class="btn btn-ghost" onclick="closeModal('modal-invoice-view');openInvoiceModal(${inv.id})">Edit</button>`;
   if (inv.status!=='Paid') btns += ` <button class="btn btn-primary" onclick="markInvoice(${inv.id},'Paid')">Mark as Paid</button>`;
   if (inv.status==='Draft') btns += ` <button class="btn" style="background:var(--info);color:#fff" onclick="markInvoice(${inv.id},'Sent')">Mark as Sent</button>`;
   if (inv.whatsapp_consent) btns += ` <button class="btn" style="background:#25D366;color:#fff" onclick="sendWhatsApp(${inv.id})">Send via WhatsApp</button>`;
@@ -870,16 +978,96 @@ async function deleteInvoice(id) {
   loadInvoices();
 }
 
+// Opens the invoice Preview (so the invoice is rendered) then shares it as an image.
+async function whatsappFromTable(id) {
+  await viewInvoice(id);
+  await sendWhatsApp(id);
+}
+
+function blobToDataURL(blob){return new Promise((resolve,reject)=>{const r=new FileReader();r.onloadend=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(blob);});}
+
 async function sendWhatsApp(id) {
   const inv = await api('GET', `/invoices/${id}`);
+
+  // If the WhatsApp Cloud API is configured, send the invoice image directly (no manual paste).
+  let settings = {};
+  try { settings = await api('GET', '/settings'); } catch (e) {}
+  if (settings.wa_api_enabled === 'true') {
+    const apiBlob = await renderInvoiceBlob();
+    if (!apiBlob) { alert('Could not generate the invoice image. Open the Preview and try again.'); return; }
+    try {
+      const dataUrl = await blobToDataURL(apiBlob);
+      await api('POST', `/invoices/${id}/send-whatsapp`, { image_base64: dataUrl });
+      alert(`✅ Invoice sent to ${inv.customer_name} via WhatsApp.`);
+      loadInvoices();
+      return;
+    } catch (e) {
+      if (!confirm('WhatsApp API send failed:\n' + (e.message || e) + '\n\nFall back to the manual copy/paste method?')) return;
+    }
+  }
+
   let phone = (inv.customer_phone||'').replace(/[^0-9]/g,'');
   if (!phone) { alert('No phone number saved for this customer.'); return; }
   // Add country code 92 for Pakistan if not present
   if (phone.startsWith('0')) phone = '92' + phone.substring(1);
-  const msg = `*Invoice ${inv.invoice_id}*\n\nDear ${inv.customer_name},\n\nPlease find your invoice details below:\n\n${inv.content||''}\n\n*Amount: ${fmtAmt(inv.amount)}*${inv.due_date?'\n*Due Date: '+inv.due_date+'*':''}\n\nThank you for your business.`;
-  const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
-  window.open(url, '_blank');
+
+  const blob = await renderInvoiceBlob();
+  if (!blob) { alert('Could not generate the invoice image. Open the invoice Preview and try again.'); return; }
+  const fileName = (inv.invoice_id || 'invoice') + '.png';
+  const caption = `Invoice ${inv.invoice_id} — ${fmtAmt(inv.amount)}`;
+
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+  // 1) Mobile: native share sheet with the actual image FILE (attaches the image directly to WhatsApp).
+  try {
+    const file = new File([blob], fileName, { type: 'image/png' });
+    if (isMobile && navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: caption, text: caption });
+      if (inv.status === 'Draft') markInvoice(id, 'Sent');
+      return;
+    }
+  } catch (e) {
+    if (e && e.name === 'AbortError') return; // user closed the share sheet
+    // otherwise fall through to the clipboard method
+  }
+
+  // 2) Desktop fallback: copy the image, open the chat with an EMPTY box, paste with Ctrl+V.
+  let copied = false;
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    copied = true;
+  } catch (e) { copied = false; }
+
+  window.open(`https://wa.me/${phone}`, '_blank');
+  if (copied) {
+    alert('✅ Invoice image copied.\n\nIn the WhatsApp chat that just opened, click the message box and press Ctrl + V to paste the invoice image, then press Send.');
+  } else {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = fileName;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    alert('Your browser blocked clipboard access, so the invoice image was downloaded.\n\nIn the WhatsApp chat, click 📎 (attach) → Photos & Videos and select the downloaded image, then send.');
+  }
   if (inv.status === 'Draft') markInvoice(id, 'Sent');
+}
+
+// Renders the on-screen invoice (#invoice-print-area) to a PNG Blob via an offscreen clone.
+async function renderInvoiceBlob() {
+  const area = document.getElementById('invoice-print-area');
+  if (!area || typeof html2canvas !== 'function') return null;
+  const holder = document.createElement('div');
+  holder.style.cssText = 'position:fixed;left:-10000px;top:0;background:#fff;z-index:-1';
+  const clone = area.cloneNode(true);
+  clone.style.maxWidth = '760px';
+  holder.appendChild(clone);
+  document.body.appendChild(holder);
+  try {
+    const canvas = await html2canvas(clone, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+    return await new Promise(res => canvas.toBlob(res, 'image/png'));
+  } catch (e) {
+    return null;
+  } finally {
+    holder.remove();
+  }
 }
 
 async function updateInvoiceStatus(id,status){
