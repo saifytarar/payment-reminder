@@ -93,6 +93,21 @@ async function initDb() {
         CONSTRAINT fk_invoices_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
       ) ENGINE=InnoDB
     `);
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS billing_periods (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        customer_id INT NOT NULL,
+        period_date DATE NOT NULL,
+        amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        invoice_id INT NULL,
+        paid_date DATE NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_customer_period (customer_id, period_date),
+        CONSTRAINT fk_bp_customer FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+        CONSTRAINT fk_bp_invoice FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE SET NULL
+      ) ENGINE=InnoDB
+    `);
 
     const [userRows] = await conn.query('SELECT COUNT(*) as n FROM users');
     if (userRows[0].n === 0) {
@@ -111,6 +126,22 @@ async function initDb() {
     };
     for (const [key, value] of Object.entries(defaultSettings)) {
       await conn.query('INSERT IGNORE INTO settings (`key`, value) VALUES (?, ?)', [key, value]);
+    }
+
+    // Backfill billing periods for existing customers (idempotent via unique key).
+    // Converts each customer's currently-overdue cycles into 'pending' period rows.
+    const [bpCustomers] = await conn.query(
+      'SELECT id, payment_frequency, frequency_value, payment_amount, next_due_date FROM customers WHERE payment_amount > 0 AND next_due_date IS NOT NULL'
+    );
+    const bpToday = new Date().toISOString().split('T')[0];
+    for (const c of bpCustomers) {
+      const { dueDates } = computeDueCycles(c.next_due_date, c.payment_frequency, c.frequency_value || 1, bpToday);
+      for (const d of dueDates) {
+        await conn.query(
+          "INSERT IGNORE INTO billing_periods (customer_id, period_date, amount, status) VALUES (?, ?, ?, 'pending')",
+          [c.id, d, c.payment_amount]
+        );
+      }
     }
   } finally {
     conn.release();
@@ -372,6 +403,128 @@ const queries = {
   async getNextInvoiceNumber() {
     const [rows] = await pool.query(`SELECT COALESCE(MAX(CAST(SUBSTRING(invoice_id, 5) AS UNSIGNED)), 0) + 1 as next_num FROM invoices`);
     return rows[0];
+  },
+
+  // ── Billing periods (per-cycle tracking) ──
+  // Ensure a 'pending' period row exists for every cycle that has come due for this customer.
+  async syncCustomerPeriods(customerId) {
+    const [rows] = await pool.query('SELECT id, payment_frequency, frequency_value, payment_amount, next_due_date FROM customers WHERE id=?', [customerId]);
+    const c = rows[0];
+    if (!c || !(parseFloat(c.payment_amount) > 0) || !c.next_due_date) return;
+    const today = new Date().toISOString().split('T')[0];
+    const { dueDates } = computeDueCycles(c.next_due_date, c.payment_frequency, c.frequency_value || 1, today);
+    for (const d of dueDates) {
+      await pool.query(
+        "INSERT IGNORE INTO billing_periods (customer_id, period_date, amount, status) VALUES (?, ?, ?, 'pending')",
+        [c.id, d, c.payment_amount]
+      );
+    }
+  },
+  async syncAllCustomerPeriods() {
+    const [rows] = await pool.query('SELECT id FROM customers WHERE payment_amount > 0 AND next_due_date IS NOT NULL');
+    for (const r of rows) await this.syncCustomerPeriods(r.id);
+  },
+  // Keep unpaid periods in step with a customer's current rate.
+  async updateUnpaidPeriodAmounts(customerId, amount) {
+    await pool.query("UPDATE billing_periods SET amount=? WHERE customer_id=? AND status='pending'", [amount, customerId]);
+  },
+  // Pending, not-yet-invoiced, already-due periods — the pickable set when creating an invoice.
+  async getInvoiceablePeriods(customerId) {
+    const [rows] = await pool.query(
+      "SELECT id, period_date, amount FROM billing_periods WHERE customer_id=? AND status='pending' AND invoice_id IS NULL AND period_date <= CURDATE() ORDER BY period_date ASC",
+      [customerId]
+    );
+    return rows;
+  },
+  // All due pending periods (regardless of invoice link) — used by the quick settle buttons.
+  async getPendingPeriodsDue(customerId) {
+    const [rows] = await pool.query(
+      "SELECT id, period_date, amount FROM billing_periods WHERE customer_id=? AND status='pending' AND period_date <= CURDATE() ORDER BY period_date ASC",
+      [customerId]
+    );
+    return rows;
+  },
+  async getPeriodsByIds(ids) {
+    const list = (ids || []).map(Number).filter(n => Number.isInteger(n));
+    if (!list.length) return [];
+    const [rows] = await pool.query(`SELECT * FROM billing_periods WHERE id IN (${list.map(() => '?').join(',')})`, list);
+    return rows;
+  },
+  async getPeriodsByInvoice(invoiceId) {
+    const [rows] = await pool.query('SELECT * FROM billing_periods WHERE invoice_id=? ORDER BY period_date ASC', [invoiceId]);
+    return rows;
+  },
+  async linkPeriodsToInvoice(invoiceId, periodIds) {
+    const list = (periodIds || []).map(Number).filter(n => Number.isInteger(n));
+    if (!list.length) return;
+    await pool.query(
+      `UPDATE billing_periods SET invoice_id=? WHERE id IN (${list.map(() => '?').join(',')}) AND status='pending'`,
+      [invoiceId, ...list]
+    );
+  },
+  // Detach periods from an invoice and re-open them (on invoice delete or un-pay).
+  async unlinkInvoice(invoiceId) {
+    await pool.query("UPDATE billing_periods SET invoice_id=NULL, status='pending', paid_date=NULL WHERE invoice_id=?", [invoiceId]);
+  },
+  // Re-open a paid invoice's periods without detaching them (used when un-paying an invoice).
+  async reopenInvoicePeriods(invoiceId) {
+    await pool.query("UPDATE billing_periods SET status='pending', paid_date=NULL WHERE invoice_id=?", [invoiceId]);
+  },
+  async markInvoicePeriodsPaid(invoiceId, paidDate) {
+    await pool.query("UPDATE billing_periods SET status='paid', paid_date=? WHERE invoice_id=?", [paidDate, invoiceId]);
+  },
+  async markPeriodsPaid(ids, paidDate) {
+    const list = (ids || []).map(Number).filter(n => Number.isInteger(n));
+    if (!list.length) return;
+    await pool.query(
+      `UPDATE billing_periods SET status='paid', paid_date=? WHERE id IN (${list.map(() => '?').join(',')})`,
+      [paidDate, ...list]
+    );
+  },
+  // Keep customers.next_due_date = oldest pending period (or next scheduled date if all settled).
+  async resyncNextDueDate(customerId) {
+    const [pend] = await pool.query("SELECT MIN(period_date) AS d FROM billing_periods WHERE customer_id=? AND status='pending'", [customerId]);
+    if (pend[0] && pend[0].d) {
+      await pool.query('UPDATE customers SET next_due_date=? WHERE id=?', [pend[0].d, customerId]);
+      return pend[0].d;
+    }
+    const [cust] = await pool.query('SELECT payment_frequency, frequency_value, next_due_date FROM customers WHERE id=?', [customerId]);
+    const [maxp] = await pool.query('SELECT MAX(period_date) AS d FROM billing_periods WHERE customer_id=?', [customerId]);
+    const anchor = (maxp[0] && maxp[0].d) ? maxp[0].d : (cust[0] ? cust[0].next_due_date : null);
+    if (!cust[0] || !anchor) return null;
+    const next = calcNextDue(anchor, cust[0].payment_frequency, cust[0].frequency_value || 1);
+    await pool.query('UPDATE customers SET next_due_date=? WHERE id=?', [next, customerId]);
+    return next;
+  },
+  // Overdue page: one row per customer with any due, unpaid period.
+  async getOverduePeriodsByCustomer() {
+    const [rows] = await pool.query(`
+      SELECT c.*,
+        COUNT(bp.id) AS cycles_overdue,
+        SUM(bp.amount) AS total_due,
+        GROUP_CONCAT(bp.period_date ORDER BY bp.period_date ASC) AS due_dates_csv,
+        DATEDIFF(CURDATE(), MIN(bp.period_date)) AS days_overdue,
+        (SELECT COUNT(*) FROM billing_periods bpi
+          WHERE bpi.customer_id = c.id AND bpi.status='pending'
+            AND bpi.invoice_id IS NULL AND bpi.period_date <= CURDATE()) AS invoiceable_count
+      FROM customers c
+      JOIN billing_periods bp
+        ON bp.customer_id = c.id AND bp.status='pending' AND bp.period_date <= CURDATE()
+      GROUP BY c.id
+      ORDER BY MIN(bp.period_date) ASC
+    `);
+    return rows.map(r => ({
+      ...r,
+      customer_name: r.name,
+      amount: r.payment_amount,
+      total_due: +((parseFloat(r.total_due) || 0)).toFixed(2),
+      due_dates: r.due_dates_csv ? String(r.due_dates_csv).split(',') : [],
+      payment_status: 'overdue',
+    }));
+  },
+  async getOverdueAmount() {
+    const [rows] = await pool.query("SELECT COALESCE(SUM(amount),0) AS total FROM billing_periods WHERE status='pending' AND period_date <= CURDATE()");
+    return +((parseFloat(rows[0].total) || 0)).toFixed(2);
   },
 };
 

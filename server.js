@@ -117,18 +117,11 @@ res.json({ success: true });
 
 app.get('/api/dashboard', auth, async (req, res) => {
 try {
-const today = new Date().toISOString().split('T')[0];
+await queries.syncAllCustomerPeriods();
 const stats = await queries.getDashboardStats();
 const upcoming = await queries.getUpcomingPayments();
-let totalOverdue = 0;
-const overdue = (await queries.getOverduePayments()).map(c => {
-const { cycles } = computeDueCycles(c.next_due_date, c.payment_frequency, c.frequency_value, today);
-const n = Math.max(cycles, 1);
-const total = (parseFloat(c.amount) || 0) * n;
-totalOverdue += total;
-return { ...c, cycles_overdue: n, total_due: +total.toFixed(2) };
-});
-stats.total_overdue_amount = +totalOverdue.toFixed(2);
+const overdue = await queries.getOverduePeriodsByCustomer();
+stats.total_overdue_amount = await queries.getOverdueAmount();
 res.json({ stats, upcoming, overdue });
 } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -168,6 +161,7 @@ payment_frequency||'monthly', parseInt(frequency_value)||1,
 parseFloat(payment_amount)||0, next_due_date||null,
 whatsapp_consent ? 1 : 0
 );
+await queries.syncCustomerPeriods(r.insertId);
 res.json({ id: r.insertId, success: true });
 } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -183,6 +177,8 @@ parseFloat(payment_amount)||0, next_due_date||null,
 whatsapp_consent ? 1 : 0,
 req.params.id
 );
+await queries.updateUnpaidPeriodAmounts(req.params.id, parseFloat(payment_amount)||0);
+await queries.syncCustomerPeriods(req.params.id);
 res.json({ success: true });
 } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -203,36 +199,39 @@ const freq = customer.payment_frequency;
 const val = customer.frequency_value || 1;
 const settleAll = req.body.all === true || req.body.all === 'true';
 
-// How many scheduled cycles to clear. The due date advances along the schedule
-// (e.g. the 10th of each month) — NOT from the date the button is clicked.
-let cyclesToClear = 1;
-if (settleAll) {
-const { cycles } = computeDueCycles(customer.next_due_date, freq, val, today);
-cyclesToClear = Math.max(cycles, 1);
-}
+// Settle whole billing periods (oldest first). The due date advances along the
+// schedule — NOT from the date the button is clicked.
+await queries.syncCustomerPeriods(customer.id);
+const due = await queries.getPendingPeriodsDue(customer.id);
+const toSettle = settleAll ? due : due.slice(0, 1);
+if (!toSettle.length) return res.json({ success: true, next_due_date: customer.next_due_date, cycles_paid: 0 });
 
-let dueDate = customer.next_due_date;
-let lastInsertId = null;
-for (let i = 0; i < cyclesToClear; i++) {
-const next = calcNextDue(dueDate, freq, val);
-const amount = (!settleAll && req.body.amount) ? parseFloat(req.body.amount) : (parseFloat(customer.payment_amount) || 0);
-const payDate = settleAll ? dueDate : (req.body.payment_date || today);
-const r = await queries.createPayment(
+for (const p of toSettle) {
+const next = calcNextDue(p.period_date, freq, val);
+const amount = (!settleAll && req.body.amount) ? parseFloat(req.body.amount) : (parseFloat(p.amount) || 0);
+const payDate = settleAll ? p.period_date : (req.body.payment_date || today);
+await queries.createPayment(
 customer.id, amount, payDate, freq, val, next, 'paid',
-req.body.notes || (settleAll ? `Cycle due ${dueDate}` : '')
+req.body.notes || `Cycle due ${p.period_date}`
 );
-lastInsertId = r.insertId;
-dueDate = next; // advance one cycle along the schedule
 }
-await queries.updateCustomerNextDue(dueDate, customer.id);
+await queries.markPeriodsPaid(toSettle.map(p => p.id), today);
+const nextDue = await queries.resyncNextDueDate(customer.id);
 await queries.createNotification(
 'payment_received',
-cyclesToClear > 1
-? `${cyclesToClear} payments settled for ${customer.name}. Next due: ${dueDate}`
-: `Payment received from ${customer.name}. Next due: ${dueDate}`,
-lastInsertId, customer.id
+toSettle.length > 1
+? `${toSettle.length} payments settled for ${customer.name}. Next due: ${nextDue}`
+: `Payment received from ${customer.name}. Next due: ${nextDue}`,
+null, customer.id
 );
-res.json({ success: true, next_due_date: dueDate, cycles_paid: cyclesToClear });
+res.json({ success: true, next_due_date: nextDue, cycles_paid: toSettle.length });
+} catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/customers/:id/pending-periods', auth, async (req, res) => {
+try {
+await queries.syncCustomerPeriods(req.params.id);
+res.json(await queries.getInvoiceablePeriods(req.params.id));
 } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -244,13 +243,8 @@ res.json(await queries.getDueCustomers());
 
 app.get('/api/overdue-payments', auth, async (req, res) => {
 try {
-const today = new Date().toISOString().split('T')[0];
-const list = await queries.getOverdueCustomers();
-res.json(list.map(c => {
-const { cycles, dueDates } = computeDueCycles(c.next_due_date, c.payment_frequency, c.frequency_value, today);
-const n = Math.max(cycles, 1);
-return { ...c, cycles_overdue: n, total_due: +(((parseFloat(c.payment_amount) || 0) * n)).toFixed(2), due_dates: dueDates };
-}));
+await queries.syncAllCustomerPeriods();
+res.json(await queries.getOverduePeriodsByCustomer());
 } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -327,32 +321,62 @@ res.json(inv);
 } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Settle every billing period linked to an invoice: log payments, mark paid, resync due date.
+async function settleInvoicePeriods(invoiceId, customerId, today) {
+const periods = await queries.getPeriodsByInvoice(invoiceId);
+const customer = customerId ? await queries.getCustomerById(customerId) : null;
+if (customer) {
+const freq = customer.payment_frequency, val = customer.frequency_value || 1;
+for (const p of periods) {
+const next = calcNextDue(p.period_date, freq, val);
+await queries.createPayment(customer.id, parseFloat(p.amount) || 0, p.period_date, freq, val, next, 'paid', `Invoice cycle due ${p.period_date}`);
+}
+}
+await queries.markInvoicePeriodsPaid(invoiceId, today);
+if (customerId) await queries.resyncNextDueDate(customerId);
+}
+
 app.post('/api/invoices', auth, async (req, res) => {
 try {
-const { customer_id, content, amount, invoice_date, due_date, status } = req.body;
+const { customer_id, content, amount, invoice_date, due_date, status, period_ids } = req.body;
 if (!customer_id) return res.status(400).json({ error: 'Customer is required' });
+const ids = Array.isArray(period_ids) ? period_ids : [];
+let amt = parseFloat(amount) || 0;
+if (!amt && ids.length) {
+const periods = await queries.getPeriodsByIds(ids);
+amt = periods.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+}
 const nextNumRow = await queries.getNextInvoiceNumber();
-const nextNum = nextNumRow.next_num;
-const invoice_id = 'INV-' + String(nextNum).padStart(4, '0');
+const invoice_id = 'INV-' + String(nextNumRow.next_num).padStart(4, '0');
+const st = status || 'Draft';
 const r = await queries.createInvoice(
 invoice_id, customer_id, content||'',
-parseFloat(amount)||0,
+amt,
 invoice_date || new Date().toISOString().split('T')[0],
-due_date||null, status||'Draft'
+due_date||null, st
 );
+if (ids.length) await queries.linkPeriodsToInvoice(r.insertId, ids);
+if (st === 'Paid') await settleInvoicePeriods(r.insertId, customer_id, new Date().toISOString().split('T')[0]);
 res.json({ id: r.insertId, invoice_id, success: true });
 } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/invoices/:id', auth, async (req, res) => {
 try {
-const { customer_id, content, amount, invoice_date, due_date, status } = req.body;
+const { customer_id, content, amount, invoice_date, due_date, status, period_ids } = req.body;
 await queries.updateInvoice(
 customer_id, content||'',
 parseFloat(amount)||0,
 invoice_date, due_date||null, status||'Draft',
 req.params.id
 );
+if (Array.isArray(period_ids)) {
+const inv = await queries.getInvoiceById(req.params.id);
+if (inv && inv.status !== 'Paid') {
+await queries.unlinkInvoice(req.params.id);
+await queries.linkPeriodsToInvoice(req.params.id, period_ids);
+}
+}
 res.json({ success: true });
 } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -369,7 +393,17 @@ try {
 const { status } = req.body;
 if (!['Draft','Sent','Paid'].includes(status))
 return res.status(400).json({ error: 'Invalid status' });
+const inv = await queries.getInvoiceById(req.params.id);
+if (!inv) return res.status(404).json({ error: 'Not found' });
 await queries.updateInvoiceStatus(status, req.params.id);
+const today = new Date().toISOString().split('T')[0];
+if (status === 'Paid' && inv.status !== 'Paid') {
+await settleInvoicePeriods(inv.id, inv.customer_id, today);
+await queries.createNotification('payment_received', `Invoice ${inv.invoice_id} paid by ${inv.customer_name}.`, null, inv.customer_id);
+} else if (status !== 'Paid' && inv.status === 'Paid') {
+await queries.reopenInvoicePeriods(inv.id);
+await queries.resyncNextDueDate(inv.customer_id);
+}
 res.json({ success: true });
 } catch (e) { res.status(500).json({ error: e.message }); }
 });

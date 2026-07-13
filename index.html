@@ -348,7 +348,8 @@ textarea{resize:vertical;min-height:75px}
     <div class="modal-body">
       <div id="inv-err" class="alert alert-error hidden"></div>
       <input type="hidden" id="inv-id"/>
-      <div class="form-row"><div class="form-group"><label>Customer <span class="req">*</span></label><select id="inv-customer"><option value="">Select customer…</option></select></div><div class="form-group"><label>Amount <span class="req">*</span></label><input type="number" id="inv-amount" min="0" step="0.01" placeholder="0.00"/></div></div>
+      <div class="form-row"><div class="form-group"><label>Customer <span class="req">*</span></label><select id="inv-customer" onchange="onInvCustomerChange()"><option value="">Select customer…</option></select></div><div class="form-group"><label>Amount <span class="req">*</span></label><input type="number" id="inv-amount" min="0" step="0.01" placeholder="0.00"/></div></div>
+      <div class="form-group hidden" id="inv-periods-wrap"><label>Months covered <span class="text-muted" style="font-weight:400">— tick the periods this invoice is for</span></label><div id="inv-periods" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:.5rem"></div></div>
       <div class="form-group"><label>Description</label><textarea id="inv-content" placeholder="Services, items, description…" style="min-height:100px"></textarea></div>
       <div class="form-row"><div class="form-group"><label>Invoice Date <span class="req">*</span></label><input type="date" id="inv-date"/></div><div class="form-group"><label>Due Date</label><input type="date" id="inv-due-date"/></div></div>
       <div class="form-group"><label>Status</label><select id="inv-status"><option value="Draft">Draft</option><option value="Sent">Sent</option><option value="Paid">Paid</option></select></div>
@@ -597,10 +598,9 @@ function buildOverdueDescription(c){
   return s;
 }
 function openInvoiceFromOverdue(id){
-  const c=OVERDUE_INFO[id];
-  if(!c){ openInvoiceModal(null,{customer_id:id}); return; }
-  const total=(c.total_due!=null)?c.total_due:c.payment_amount;
-  openInvoiceModal(null,{customer_id:id,amount:total,description:buildOverdueDescription(c)});
+  // The invoice modal loads the customer's pending months, pre-checks them all,
+  // and auto-fills amount + description; the user unticks any month not being invoiced.
+  openInvoiceModal(null,{customer_id:id});
 }
 async function loadOverduePayments(){
   const list=await api('GET','/overdue-payments');
@@ -608,9 +608,9 @@ async function loadOverduePayments(){
   $('overdue-tbody').innerHTML=list.length?list.map(c=>{
     const cycles = c.cycles_overdue || 1;
     const total = (c.total_due != null) ? c.total_due : c.payment_amount;
-    const invoiceBtn = c.open_invoice_count > 0
-      ? `<button class="btn btn-sm" disabled style="opacity:.5;cursor:not-allowed" title="An open invoice already exists for this customer">🧾 Invoice Created</button>`
-      : `<button class="btn btn-sm btn-primary" onclick="openInvoiceFromOverdue(${c.id})">🧾 Create Invoice</button>`;
+    const invoiceBtn = (c.invoiceable_count > 0)
+      ? `<button class="btn btn-sm btn-primary" onclick="openInvoiceFromOverdue(${c.id})">🧾 Create Invoice</button>`
+      : `<button class="btn btn-sm" disabled style="opacity:.5;cursor:not-allowed" title="All overdue months are already on an invoice">🧾 Invoiced</button>`;
     const settleBtn = cycles > 1
       ? `<button class="btn btn-sm" style="background:#0ea5e9;color:#fff;margin-right:.3rem" onclick="settleAll(${c.id},'${esc(c.name)}',${cycles},${total})">💰 Settle All (${cycles})</button>`
       : '';
@@ -739,6 +739,7 @@ if(TOKEN)bootApp();
 // ─── INVOICE MANAGEMENT ───────────────────────────────────────────────────────
 
 window._allInvoices = [];
+let INV_PERIODS=[], INV_CUSTOMERS=[], INV_CUST_FREQ='monthly', INV_CUST_FVAL=1, INV_LAST_DESC='';
 
 async function loadInvoices() {
   const rows = await api('GET', '/invoices');
@@ -800,9 +801,12 @@ async function openInvoiceModal(id=null, prefill=null) {
   $('inv-due-date').value = '';
   $('inv-status').value = 'Draft';
   $('inv-date').value = new Date().toISOString().split('T')[0];
+  $('inv-periods').innerHTML = '';
+  $('inv-periods-wrap').classList.add('hidden');
+  INV_PERIODS = []; INV_LAST_DESC = '';
   // Populate customer dropdown
-  const customers = await api('GET', '/customers');
-  $('inv-customer').innerHTML = '<option value="">Select customer...</option>' + customers.map(c => `<option value="${c.id}">${c.name}${c.company?' ('+c.company+')':''}</option>`).join('');
+  INV_CUSTOMERS = await api('GET', '/customers');
+  $('inv-customer').innerHTML = '<option value="">Select customer...</option>' + INV_CUSTOMERS.map(c => `<option value="${c.id}">${c.name}${c.company?' ('+c.company+')':''}</option>`).join('');
   if (id) {
     const inv = await api('GET', `/invoices/${id}`);
     $('inv-customer').value = inv.customer_id;
@@ -811,17 +815,69 @@ async function openInvoiceModal(id=null, prefill=null) {
     $('inv-due-date').value = inv.due_date||'';
     $('inv-content').value = inv.content||'';
     $('inv-status').value = inv.status||'Draft';
-  } else if (prefill) {
-    if (prefill.customer_id != null) $('inv-customer').value = prefill.customer_id;
-    if (prefill.amount != null) $('inv-amount').value = prefill.amount;
-    const cust = customers.find(x => x.id == prefill.customer_id);
+    // Editing: month coverage is fixed at creation, so the picker stays hidden.
+  } else if (prefill && prefill.customer_id != null) {
+    $('inv-customer').value = prefill.customer_id;
+    const cust = INV_CUSTOMERS.find(x => x.id == prefill.customer_id);
     if (cust && cust.next_due_date) $('inv-due-date').value = cust.next_due_date;
-    const parts = [];
-    if (prefill.description) parts.push(prefill.description);
-    if (cust && cust.notes) parts.push(cust.notes);
-    if (parts.length) $('inv-content').value = parts.join('\n\n');
+    await loadInvPeriods(prefill.customer_id, true);
   }
   openModal('modal-invoice');
+}
+
+// ── Invoice month-picker ──
+async function onInvCustomerChange() {
+  if ($('inv-id').value) return;             // editing: coverage is fixed
+  const cid = $('inv-customer').value;
+  if (!cid) { $('inv-periods-wrap').classList.add('hidden'); INV_PERIODS = []; return; }
+  await loadInvPeriods(cid, true);
+}
+
+async function loadInvPeriods(customerId, preCheckAll) {
+  const cust = INV_CUSTOMERS.find(c => c.id == customerId);
+  INV_CUST_FREQ = cust ? cust.payment_frequency : 'monthly';
+  INV_CUST_FVAL = cust ? (cust.frequency_value||1) : 1;
+  try { INV_PERIODS = await api('GET', `/customers/${customerId}/pending-periods`); }
+  catch { INV_PERIODS = []; }
+  renderInvPeriods(preCheckAll);
+}
+
+function renderInvPeriods(preCheckAll) {
+  const box = $('inv-periods');
+  $('inv-periods-wrap').classList.remove('hidden');
+  if (!INV_PERIODS.length) {
+    box.innerHTML = '<p class="text-muted text-sm" style="margin:.25rem">No pending months for this customer.</p>';
+    return;
+  }
+  box.innerHTML = INV_PERIODS.map(p =>
+    `<label style="display:flex;align-items:center;gap:.5rem;padding:.35rem .5rem;border-radius:6px;cursor:pointer">
+      <input type="checkbox" class="inv-period-cb" value="${p.id}" data-amt="${p.amount}" ${preCheckAll?'checked':''} onchange="onInvPeriodToggle()"/>
+      <span style="flex:1">${esc(cyclePeriodLabel(p.period_date, INV_CUST_FREQ, INV_CUST_FVAL))}</span>
+      <span class="text-muted">${fmtAmt(p.amount)}</span>
+    </label>`
+  ).join('');
+  onInvPeriodToggle();
+}
+
+function invCheckedPeriods() {
+  return Array.from(document.querySelectorAll('.inv-period-cb:checked'));
+}
+
+function onInvPeriodToggle() {
+  const checked = invCheckedPeriods();
+  const sum = checked.reduce((s, cb) => s + (parseFloat(cb.dataset.amt)||0), 0);
+  if (checked.length) $('inv-amount').value = +sum.toFixed(2);
+  const ids = checked.map(cb => String(cb.value));
+  const sel = INV_PERIODS.filter(p => ids.includes(String(p.id)));
+  let desc = '';
+  if (sel.length) {
+    const periods = sel.map(p => cyclePeriodLabel(p.period_date, INV_CUST_FREQ, INV_CUST_FVAL));
+    desc = `Payment due for ${periods.join(', ')} @ rate of ${rateLabel(INV_CUST_FREQ, INV_CUST_FVAL, sel[0].amount||0)}.`;
+    if (sel.length > 1) desc += ` Total: ${fmtAmt(sum)} (${sel.length} cycles).`;
+  }
+  const cur = $('inv-content').value.trim();
+  if (cur === '' || cur === INV_LAST_DESC) $('inv-content').value = desc;   // don't clobber manual edits
+  INV_LAST_DESC = desc;
 }
 
 async function saveInvoice() {
@@ -836,6 +892,7 @@ async function saveInvoice() {
     due_date: $('inv-due-date').value||null,
     status: $('inv-status').value
   };
+  if (!id) body.period_ids = invCheckedPeriods().map(cb => parseInt(cb.value));
   try {
     if (id) { await api('PUT', `/invoices/${id}`, body); }
     else { await api('POST', '/invoices', body); }
