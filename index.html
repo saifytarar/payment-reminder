@@ -3,1140 +3,1443 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Payment Reminder System</title>
+<title>COUNTX — Payment Manager</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+*{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --primary:#4f46e5;--primary-dark:#3730a3;--primary-light:#eef2ff;
-  --success:#10b981;--warning:#f59e0b;--danger:#ef4444;--info:#3b82f6;
-  --bg:#f8fafc;--sidebar:#1e1b4b;--sidebar-text:#c7d2fe;
-  --card:#fff;--border:#e2e8f0;--text:#1e293b;--text-muted:#64748b;
-  --shadow:0 1px 3px rgba(0,0,0,.1),0 1px 2px rgba(0,0,0,.06);
-  --shadow-lg:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -2px rgba(0,0,0,.05);
-  --radius:10px;--transition:.15s ease;
+  --bg:#0f1117;--sidebar:#161b27;--card:#1e2535;--card2:#252e42;
+  --border:#2a3347;--text:#e8eaf0;--muted:#8892a4;--accent:#4f8ef7;
+  --green:#22c55e;--red:#ef4444;--yellow:#f59e0b;--purple:#a855f7;
+  --radius:10px;--font:'Inter',system-ui,sans-serif;
 }
-body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-input,select,textarea,button{font-family:inherit;font-size:1rem}
-#login-page{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#4f46e5 0%,#1e1b4b 100%)}
-.login-card{background:#fff;border-radius:16px;padding:2.5rem;width:100%;max-width:400px;box-shadow:var(--shadow-lg)}
-.login-card h1{font-size:1.6rem;font-weight:700;color:var(--primary);margin-bottom:.25rem}
-.login-card>p{color:var(--text-muted);margin-bottom:1.75rem;font-size:.95rem}
-.login-logo{width:52px;height:52px;background:var(--primary);border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:1rem}
-#app{display:none;min-height:100vh}
-.layout{display:flex;min-height:100vh}
-.sidebar{width:240px;background:var(--sidebar);color:var(--sidebar-text);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;transition:transform var(--transition)}
-.sidebar-header{padding:1.25rem 1rem;border-bottom:1px solid rgba(255,255,255,.08)}
-.sidebar-header h2{font-size:1rem;font-weight:700;color:#fff;line-height:1.3}
-.sidebar-header span{font-size:.75rem;color:var(--sidebar-text);opacity:.7}
-.sidebar-nav{flex:1;padding:1rem 0;overflow-y:auto}
-.nav-item{display:flex;align-items:center;gap:.75rem;padding:.65rem 1.25rem;cursor:pointer;transition:background var(--transition);color:var(--sidebar-text);font-size:.9rem;border-left:3px solid transparent}
-.nav-item:hover{background:rgba(255,255,255,.07);color:#fff}
-.nav-item.active{background:rgba(79,70,229,.35);color:#fff;border-left-color:var(--primary)}
-.nav-item svg{width:18px;height:18px;flex-shrink:0;opacity:.85}
-.sidebar-footer{padding:1rem;border-top:1px solid rgba(255,255,255,.08)}
-.user-info{display:flex;align-items:center;gap:.65rem}
-.user-avatar{width:34px;height:34px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;color:#fff;flex-shrink:0}
-.main{margin-left:240px;flex:1;display:flex;flex-direction:column;min-height:100vh}
-.topbar{background:#fff;border-bottom:1px solid var(--border);padding:.85rem 1.5rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:var(--shadow)}
-.topbar-title{font-size:1.15rem;font-weight:600}
-.notif-btn{position:relative;background:none;border:none;cursor:pointer;padding:.4rem;border-radius:8px;color:var(--text-muted);transition:background var(--transition)}
-.notif-btn:hover{background:var(--bg)}
-.notif-badge{position:absolute;top:2px;right:2px;background:var(--danger);color:#fff;font-size:.6rem;font-weight:700;border-radius:99px;min-width:16px;height:16px;display:flex;align-items:center;justify-content:center;padding:0 3px}
-.content{flex:1;padding:1.5rem}
-.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);margin-bottom:1rem}
-.card-header{padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
-.card-header h3{font-size:1rem;font-weight:600}
-.card-body{padding:1.25rem}
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem}
-.stat-card{background:var(--card);border-radius:var(--radius);padding:1.25rem;box-shadow:var(--shadow);border:1px solid var(--border);display:flex;align-items:center;gap:1rem}
-.stat-icon{width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.stat-value{font-size:1.7rem;font-weight:700;line-height:1;margin-bottom:.2rem}
-.stat-label{font-size:.8rem;color:var(--text-muted)}
-.table-wrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:.875rem}
-th{text-align:left;padding:.65rem 1rem;background:#f8fafc;border-bottom:2px solid var(--border);font-weight:600;color:var(--text-muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
-td{padding:.65rem 1rem;border-bottom:1px solid var(--border)}
+body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex;min-height:100vh;font-size:14px}
+a{color:var(--accent);text-decoration:none}
+/* Login */
+#login-page{display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;background:var(--bg);flex-direction:column;gap:24px}
+.login-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:40px;width:100%;max-width:380px}
+.login-box h1{font-size:22px;font-weight:700;margin-bottom:6px;text-align:center}
+.login-logo{text-align:center;font-size:28px;font-weight:800;letter-spacing:-1px;color:var(--accent);margin-bottom:24px}
+/* Sidebar */
+#app{display:flex;flex:1;width:100%}
+.sidebar{width:220px;min-width:220px;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:16px 0;position:fixed;top:0;left:0;height:100vh;z-index:100;overflow-y:auto}
+.sidebar-logo{padding:8px 20px 20px;font-size:20px;font-weight:800;color:var(--accent);letter-spacing:-0.5px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;color:var(--muted);border-radius:0;transition:all .15s;font-size:13.5px;font-weight:500;border-left:3px solid transparent;margin:1px 0}
+.nav-item:hover{color:var(--text);background:rgba(79,142,247,.08)}
+.nav-item.active{color:var(--accent);background:rgba(79,142,247,.12);border-left-color:var(--accent)}
+.nav-icon{font-size:16px;width:20px;text-align:center}
+.sidebar-footer{margin-top:auto;padding:16px 20px;border-top:1px solid var(--border)}
+.main{margin-left:220px;flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{padding:14px 28px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--sidebar);position:sticky;top:0;z-index:50}
+.topbar h2{font-size:17px;font-weight:600}
+.page{padding:24px 28px;display:none;flex-direction:column;gap:20px}
+.page.active{display:flex}
+/* Cards */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+.card-title{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px}
+.stat-card{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius);padding:18px}
+.stat-label{font-size:12px;color:var(--muted);margin-bottom:6px}
+.stat-value{font-size:24px;font-weight:700}
+.stat-sub{font-size:12px;color:var(--muted);margin-top:4px}
+.stat-card.green .stat-value{color:var(--green)}
+.stat-card.red .stat-value{color:var(--red)}
+.stat-card.yellow .stat-value{color:var(--yellow)}
+.stat-card.blue .stat-value{color:var(--accent)}
+.stat-card.purple .stat-value{color:var(--purple)}
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:500;transition:all .15s}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:#3b7de8}
+.btn-success{background:var(--green);color:#fff}
+.btn-danger{background:var(--red);color:#fff}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
+.btn-ghost:hover{background:var(--card2)}
+.btn-sm{padding:5px 12px;font-size:12px}
+.btn-xs{padding:4px 8px;font-size:11px;border-radius:6px}
+/* Forms */
+.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.form-group label{font-size:12px;font-weight:500;color:var(--muted)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+input,select,textarea{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:13.5px;width:100%;outline:none;font-family:inherit}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:80px}
+select option{background:var(--card2)}
+/* Table */
+.table-wrap{overflow-x:auto;border-radius:var(--radius)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:var(--card2);padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+td{padding:11px 14px;border-bottom:1px solid var(--border);vertical-align:middle}
 tr:last-child td{border-bottom:none}
-tr:hover td{background:#fafafa}
-.empty-row td{text-align:center;padding:2rem;color:var(--text-muted)}
-.badge{display:inline-flex;align-items:center;padding:.2rem .55rem;border-radius:99px;font-size:.73rem;font-weight:600;white-space:nowrap}
-.badge-paid,.badge-on_track{background:#d1fae5;color:#065f46}
-.badge-due_today{background:#fef3c7;color:#92400e}
-.badge-due_soon{background:#dbeafe;color:#1e40af}
-.badge-overdue{background:#fee2e2;color:#991b1b}
-.badge-no_setup{background:#f1f5f9;color:#64748b}
-.badge-reminder,.badge-due{background:#ede9fe;color:#5b21b6}
-.badge-payment_received{background:#d1fae5;color:#065f46}
-.badge-info{background:#dbeafe;color:#1e40af}
-.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;border-radius:8px;border:none;cursor:pointer;font-weight:500;font-size:.875rem;transition:all var(--transition);white-space:nowrap}
-.btn-primary{background:var(--primary);color:#fff}.btn-primary:hover{background:var(--primary-dark)}
-.btn-success{background:var(--success);color:#fff}.btn-success:hover{background:#059669}
-.btn-danger{background:var(--danger);color:#fff}.btn-danger:hover{background:#dc2626}
-.btn-warning{background:var(--warning);color:#fff}.btn-warning:hover{background:#d97706}
-.btn-ghost{background:transparent;color:var(--text-muted);border:1px solid var(--border)}.btn-ghost:hover{background:var(--bg);color:var(--text)}
-.btn-sm{padding:.3rem .65rem;font-size:.8rem}
-.btn-icon{padding:.35rem;border-radius:6px;background:none;border:none;cursor:pointer;color:var(--text-muted);transition:background var(--transition);display:inline-flex;align-items:center;justify-content:center}
-.btn-icon:hover{background:var(--bg);color:var(--text)}
-.btn-icon svg{width:16px;height:16px;display:block}
-.form-group{margin-bottom:1rem}
-.form-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
-label{display:block;font-size:.85rem;font-weight:500;color:var(--text);margin-bottom:.35rem}
-.req{color:var(--danger);margin-left:2px}
-input[type=text],input[type=email],input[type=number],input[type=password],input[type=date],select,textarea{width:100%;padding:.5rem .75rem;border:1px solid var(--border);border-radius:8px;font-size:.9rem;transition:border-color var(--transition),box-shadow var(--transition);background:#fff;color:var(--text)}
-input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
-textarea{resize:vertical;min-height:75px}
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:flex;align-items:center;justify-content:center;padding:1rem;opacity:0;pointer-events:none;transition:opacity .2s}
-.modal-overlay.open{opacity:1;pointer-events:all}
-.modal{background:#fff;border-radius:14px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:var(--shadow-lg);transform:scale(.96);transition:transform .2s}
-.modal-overlay.open .modal{transform:scale(1)}
-.modal-header{padding:1.2rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1}
-.modal-header h3{font-size:1.05rem;font-weight:600}
-.modal-body{padding:1.5rem}
-.modal-footer{padding:1rem 1.5rem;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:.75rem;position:sticky;bottom:0;background:#fff}
-.section-divider{font-size:.78rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;padding:.5rem 0 .25rem;border-bottom:1px solid var(--border);margin-bottom:.75rem;margin-top:.5rem}
-.search-bar{display:flex;align-items:center;gap:.5rem;background:#fff;border:1px solid var(--border);border-radius:8px;padding:.4rem .75rem}
-.search-bar input{border:none;outline:none;background:none;font-size:.875rem;width:200px}
-.filter-bar{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
-.filter-bar select{width:auto;padding:.4rem .65rem;font-size:.85rem}
-.toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem}
-.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem}
-.cal-nav h3{font-size:1.05rem;font-weight:600}
-.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
-.cal-day-name{background:#f8fafc;text-align:center;padding:.5rem;font-size:.73rem;font-weight:600;color:var(--text-muted);text-transform:uppercase}
-.cal-day{background:#fff;min-height:90px;padding:.4rem}
-.cal-day.other-month{background:#fafafa;opacity:.5}
-.cal-day.today{background:var(--primary-light)}
-.cal-day-num{font-size:.78rem;font-weight:600;color:var(--text-muted);margin-bottom:.25rem}
-.cal-day.today .cal-day-num{color:var(--primary)}
-.cal-event{font-size:.68rem;background:var(--primary-light);color:var(--primary-dark);border-radius:4px;padding:.1rem .3rem;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
-.cal-event.overdue{background:#fee2e2;color:#991b1b}
-.cal-event.due_soon,.cal-event.due_today{background:#fef3c7;color:#92400e}
-.notif-panel{position:fixed;top:0;right:0;width:360px;height:100vh;background:#fff;box-shadow:-4px 0 20px rgba(0,0,0,.1);z-index:200;transform:translateX(100%);transition:transform .2s;display:flex;flex-direction:column}
-.notif-panel.open{transform:translateX(0)}
-.notif-panel-header{padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.notif-panel-header h3{font-weight:600}
-.notif-list{flex:1;overflow-y:auto;padding:.5rem}
-.notif-item{padding:.85rem 1rem;border-radius:8px;margin-bottom:.25rem;border:1px solid transparent;cursor:pointer;transition:background .1s}
-.notif-item:hover{background:var(--bg)}
-.notif-item.unread{background:#f0f4ff;border-color:#c7d2fe}
-.notif-msg{font-size:.84rem;line-height:1.4;margin-bottom:.25rem}
-.notif-time{font-size:.73rem;color:var(--text-muted)}
-.alert{padding:.7rem 1rem;border-radius:8px;font-size:.875rem;margin-bottom:1rem}
-.alert-success{background:#d1fae5;color:#065f46;border:1px solid #a7f3d0}
-.alert-error{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
-.alert-info{background:#dbeafe;color:#1e40af;border:1px solid #93c5fd}
-.tabs{display:flex;gap:.25rem;border-bottom:2px solid var(--border);margin-bottom:1.25rem}
-.tab{padding:.55rem 1rem;border:none;background:none;cursor:pointer;font-size:.875rem;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;font-weight:500;transition:all .15s}
-.tab.active{color:var(--primary);border-bottom-color:var(--primary)}
-.toggle{position:relative;display:inline-block;width:42px;height:24px;vertical-align:middle}
-.toggle input{opacity:0;width:0;height:0}
-.toggle-slider{position:absolute;inset:0;background:#cbd5e1;border-radius:24px;transition:.2s;cursor:pointer}
-.toggle-slider:before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
-.toggle input:checked+.toggle-slider{background:var(--primary)}
-.toggle input:checked+.toggle-slider:before{transform:translateX(18px)}
-.page{display:none}.page.active{display:block}
-.hidden{display:none!important}
-.text-muted{color:var(--text-muted)}.text-sm{font-size:.85rem}
-.flex{display:flex}.items-center{align-items:center}.gap-2{gap:.5rem}.gap-3{gap:.75rem}.justify-between{justify-content:space-between}
-.w-full{width:100%}
-.two-col{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
-.days-overdue{background:#fee2e2;color:#991b1b;padding:.15rem .45rem;border-radius:6px;font-size:.75rem;font-weight:600}
-@media(max-width:768px){
-  .sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0)}
-  .main{margin-left:0}.form-row,.two-col{grid-template-columns:1fr}
-  .stats-grid{grid-template-columns:1fr 1fr}
-  #sidebar-toggle{display:flex!important}
-  .notif-panel{width:100%}
-}
+tr:hover td{background:rgba(255,255,255,.02)}
+/* Badges */
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-green{background:rgba(34,197,94,.15);color:var(--green)}
+.badge-red{background:rgba(239,68,68,.15);color:var(--red)}
+.badge-yellow{background:rgba(245,158,11,.15);color:var(--yellow)}
+.badge-blue{background:rgba(79,142,247,.15);color:var(--accent)}
+.badge-gray{background:rgba(136,146,164,.15);color:var(--muted)}
+.badge-purple{background:rgba(168,85,247,.15);color:var(--purple)}
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:500;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:14px;width:100%;max-width:580px;max-height:90vh;overflow-y:auto;padding:28px}
+.modal-lg{max-width:780px}
+.modal h3{font-size:17px;font-weight:600;margin-bottom:20px}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+/* Misc */
+.empty{text-align:center;padding:48px 20px;color:var(--muted)}
+.empty-icon{font-size:40px;margin-bottom:12px}
+.search-bar{display:flex;gap:10px;margin-bottom:16px;align-items:center}
+.search-bar input{max-width:280px}
+.flex{display:flex;align-items:center;gap:8px}
+.flex-between{display:flex;align-items:center;justify-content:space-between}
+.text-sm{font-size:12px;color:var(--muted)}
+.text-right{text-align:right}
+.divider{border:none;border-top:1px solid var(--border);margin:16px 0}
+/* Invoice preview */
+.invoice-preview{background:#fff;color:#111;border-radius:8px;padding:36px;font-family:'Arial',sans-serif;font-size:13px}
+.inv-header{display:flex;justify-content:space-between;margin-bottom:28px}
+.inv-title{font-size:26px;font-weight:700;color:#1a1a2e}
+.inv-table{width:100%;border-collapse:collapse;margin:20px 0}
+.inv-table th{background:#f0f4ff;padding:10px;text-align:left;font-size:12px}
+.inv-table td{padding:10px;border-bottom:1px solid #e8eaf0}
+.inv-total-row{font-weight:700;background:#f8f9fb}
+.inv-sig{margin-top:36px;display:flex;flex-direction:column;align-items:flex-end}
+/* Chart */
+.chart-wrap{position:relative;height:240px}
+/* Notification dot */
+.notif-dot{display:inline-block;width:8px;height:8px;background:var(--red);border-radius:50%;margin-left:4px;vertical-align:middle}
+/* Tabs */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px}
+.tab{padding:8px 18px;cursor:pointer;color:var(--muted);font-size:13px;font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+/* Invoice items */
+.inv-item-row{display:grid;grid-template-columns:1fr 100px 100px 36px;gap:8px;align-items:center;margin-bottom:8px}
+.inv-items-header{display:grid;grid-template-columns:1fr 100px 100px 36px;gap:8px;margin-bottom:6px;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase}
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 
+<!-- LOGIN -->
 <div id="login-page">
-  <div class="login-card">
-    <div class="login-logo">
-      <svg viewBox="0 0 24 24" fill="#fff" width="28" height="28"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
-    </div>
-    <h1>PayReminder</h1>
-    <p>Customer Payment Management System</p>
-    <div id="login-error" class="alert alert-error hidden"></div>
-    <form id="login-form">
-      <div class="form-group"><label>Username</label><input id="lu" type="text" placeholder="Enter username" required autocomplete="username"/></div>
-      <div class="form-group"><label>Password</label><input id="lp" type="password" placeholder="••••••••" required autocomplete="current-password"/></div>
-      <button type="submit" class="btn btn-primary w-full" style="justify-content:center;padding:.7rem;margin-top:.5rem">Sign In</button>
-    </form>
+  <div class="login-logo">COUNTX</div>
+  <div class="login-box">
+    <h1>Sign In</h1>
+    <p style="color:var(--muted);text-align:center;margin-bottom:24px;font-size:13px">Payment Management System</p>
+    <div class="form-group"><label>Username</label><input type="text" id="login-user" placeholder="admin"/></div>
+    <div class="form-group"><label>Password</label><input type="password" id="login-pass" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;"/></div>
+    <p id="login-err" style="color:var(--red);font-size:12px;margin-bottom:10px;display:none"></p>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;padding:11px" onclick="doLogin()">Sign In</button>
   </div>
 </div>
 
-<div id="app">
-<div class="layout">
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header"><h2>💳 PayReminder</h2><span>Payment Manager</span></div>
-    <nav class="sidebar-nav" id="sidebar-nav">
-      <div class="nav-item active" data-page="dashboard"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>Dashboard</div>
-      <div class="nav-item" data-page="customers"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>Customers</div>
-      <div class="nav-item" data-page="due-payments"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>Due Payments</div>
-      <div class="nav-item" data-page="overdue-payments"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>Overdue</div>
-      <div class="nav-item" data-page="payments"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>Payment History</div>
-      <div class="nav-item" data-page="calendar"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>Calendar</div>
-      <div class="nav-item" data-page="invoices"><svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>Invoices</div>
-      <div class="nav-item" data-page="settings"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>Settings</div>
-    
-      </nav>
+<!-- APP -->
+<div id="app" style="display:none">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-logo">COUNTX</div>
+    <div class="nav-item active" data-page="dashboard"><span class="nav-icon">&#x1F4CA;</span> Dashboard</div>
+    <div class="nav-item" data-page="customers"><span class="nav-icon">&#x1F465;</span> Customers</div>
+    <div class="nav-item" data-page="payments"><span class="nav-icon">&#x1F4B0;</span> Payment History</div>
+    <div class="nav-item" data-page="due-payments"><span class="nav-icon">&#x23F0;</span> Due Payments</div>
+    <div class="nav-item" data-page="overdue"><span class="nav-icon">&#x1F534;</span> Overdue</div>
+    <div class="nav-item" data-page="invoices"><span class="nav-icon">&#x1F9FE;</span> Invoices</div>
+    <div class="nav-item" data-page="quick-invoice"><span class="nav-icon">&#x26A1;</span> Quick Invoice</div>
+    <div class="nav-item" data-page="expenses"><span class="nav-icon">&#x1F4C9;</span> Expenses</div>
+    <div class="nav-item" data-page="calendar"><span class="nav-icon">&#x1F4C5;</span> Calendar</div>
+    <div class="nav-item" data-page="settings"><span class="nav-icon">&#x2699;&#xFE0F;</span> Settings</div>
     <div class="sidebar-footer">
-      <div class="user-info">
-        <div class="user-avatar" id="user-avatar">A</div>
-        <div style="min-width:0"><div id="user-name" style="font-size:.85rem;color:#fff;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Admin</div><div id="user-email" style="font-size:.7rem;color:rgba(255,255,255,.45);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">admin@example.com</div></div>
-        <button class="btn-icon" onclick="logout()" title="Logout" style="margin-left:auto;color:rgba(255,255,255,.5)"><svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg></button>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px" id="sidebar-user"></div>
+      <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center" onclick="logout()">Sign Out</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <h2 id="page-title">Dashboard</h2>
+      <div class="flex">
+        <button class="btn btn-ghost btn-sm" onclick="showNotifs()" style="position:relative">
+          &#x1F514; <span id="notif-count" style="display:none" class="notif-dot"></span>
+        </button>
       </div>
     </div>
-  </aside>
 
-  <main class="main">
-    <header class="topbar">
-      <div class="flex items-center gap-3">
-        <button class="btn-icon" id="sidebar-toggle" style="display:none" onclick="document.getElementById('sidebar').classList.toggle('open')"><svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg></button>
-        <span class="topbar-title" id="page-title">Dashboard</span>
+    <!-- DASHBOARD -->
+    <div id="page-dashboard" class="page active">
+      <div class="stat-grid" id="dash-stats"></div>
+      <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:14px">
+        <div class="card">
+          <div class="card-title">Income vs Expenses (6 months)</div>
+          <div class="chart-wrap"><canvas id="bar-chart"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-title">Upcoming Payments</div>
+          <div id="dash-upcoming"></div>
+        </div>
       </div>
-      <button class="notif-btn" onclick="toggleNotifPanel()" title="Notifications">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22"><path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z"/></svg>
-        <span class="notif-badge hidden" id="notif-badge">0</span>
-      </button>
-    </header>
-
-    <div class="content">
-      <!-- DASHBOARD -->
-      <section class="page active" id="page-dashboard">
-        <div class="stats-grid">
-          <div class="stat-card"><div class="stat-icon" style="background:#ede9fe"><svg viewBox="0 0 24 24" fill="#7c3aed" width="24" height="24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg></div><div><div class="stat-value" id="stat-customers">—</div><div class="stat-label">Total Customers</div></div></div>
-          <div class="stat-card"><div class="stat-icon" style="background:#fef3c7"><svg viewBox="0 0 24 24" fill="#d97706" width="24" height="24"><path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg></div><div><div class="stat-value" id="stat-today">—</div><div class="stat-label">Due Today</div></div></div>
-          <div class="stat-card"><div class="stat-icon" style="background:#dbeafe"><svg viewBox="0 0 24 24" fill="#2563eb" width="24" height="24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg></div><div><div class="stat-value" id="stat-week">—</div><div class="stat-label">Due This Week</div></div></div>
-          <div class="stat-card"><div class="stat-icon" style="background:#fee2e2"><svg viewBox="0 0 24 24" fill="#dc2626" width="24" height="24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div><div><div class="stat-value" id="stat-overdue">—</div><div class="stat-label">Overdue</div></div></div>
-        </div>
-        <div class="two-col">
-          <div class="card"><div class="card-header"><h3>📅 Upcoming Payments</h3><button class="btn btn-sm btn-ghost" onclick="navigate('due-payments')">View All</button></div><div class="table-wrap"><table><thead><tr><th>Customer</th><th>Amount</th><th>Due</th><th>Status</th></tr></thead><tbody id="dash-upcoming"></tbody></table></div></div>
-          <div class="card"><div class="card-header"><h3>🔴 Overdue Payments</h3><button class="btn btn-sm btn-ghost" onclick="navigate('overdue-payments')">View All</button></div><div class="table-wrap"><table><thead><tr><th>Customer</th><th>Amount</th><th>Due</th><th></th></tr></thead><tbody id="dash-overdue"></tbody></table></div></div>
-        </div>
-      </section>
-
-      <!-- CUSTOMERS -->
-      <section class="page" id="page-customers">
-        <div class="toolbar">
-          <div class="search-bar"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="color:var(--text-muted)"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg><input id="cust-search" type="text" placeholder="Search by name, company, phone…" oninput="loadCustomers()"/></div>
-          <button class="btn btn-primary" onclick="openCustomerModal()"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>Add Customer</button>
-        </div>
-        <div class="card"><div class="table-wrap"><table><thead><tr><th>#</th><th>Customer</th><th>Company</th><th>Phone</th><th>Frequency</th><th>Amount</th><th>Next Due</th><th>Status</th><th>Actions</th></tr></thead><tbody id="cust-tbody"><tr class="empty-row"><td colspan="9">Loading…</td></tr></tbody></table></div></div>
-      </section>
-
-      <!-- DUE PAYMENTS -->
-      <section class="page" id="page-due-payments">
-        <div class="card">
-          <div class="card-header"><h3>⏰ Payments Due (Next 7 Days)</h3><button class="btn btn-sm btn-ghost" onclick="loadDuePayments()">↻ Refresh</button></div>
-          <div class="table-wrap"><table><thead><tr><th>Customer</th><th>Company</th><th>Phone</th><th>Amount</th><th>Frequency</th><th>Next Due</th><th>Status</th><th>Action</th></tr></thead><tbody id="due-tbody"><tr class="empty-row"><td colspan="8">Loading…</td></tr></tbody></table></div>
-        </div>
-      </section>
-
-      <!-- OVERDUE PAYMENTS -->
-      <section class="page" id="page-overdue-payments">
-        <div class="card">
-          <div class="card-header"><h3>🔴 Overdue Payments</h3><button class="btn btn-sm btn-ghost" onclick="loadOverduePayments()">↻ Refresh</button></div>
-          <div class="table-wrap"><table><thead><tr><th>Customer</th><th>Company</th><th>Phone</th><th>Amount</th><th>Original Due Date</th><th>Days Overdue</th><th>Action</th></tr></thead><tbody id="overdue-tbody"><tr class="empty-row"><td colspan="7">Loading…</td></tr></tbody></table></div>
-        </div>
-      </section>
-
-      <!-- PAYMENT HISTORY -->
-      <section class="page" id="page-payments">
-        <div class="toolbar">
-          <div class="filter-bar">
-            <select id="flt-customer" onchange="loadPayments()"><option value="">All Customers</option></select>
-            <select id="flt-freq" onchange="loadPayments()"><option value="">All Frequencies</option><option value="monthly">Monthly</option><option value="bimonthly">Every 2 Months</option><option value="every4months">Every 4 Months</option><option value="every6months">Every 6 Months</option><option value="yearly">Yearly</option><option value="custom_days">Custom Days</option><option value="custom_months">Custom Months</option></select>
-          </div>
-          <span class="text-muted text-sm">Showing all received payments</span>
-        </div>
-        <div class="card"><div class="table-wrap"><table><thead><tr><th>Customer</th><th>Phone</th><th>Amount</th><th>Payment Date</th><th>Frequency</th><th>Next Due</th><th>Actions</th></tr></thead><tbody id="pay-tbody"><tr class="empty-row"><td colspan="7">Loading…</td></tr></tbody></table></div></div>
-      </section>
-
-      <!-- CALENDAR -->
-      <section class="page" id="page-calendar">
-        <div class="card"><div class="card-body">
-          <div class="cal-nav"><button class="btn btn-ghost btn-sm" onclick="calPrev()">← Prev</button><h3 id="cal-label"></h3><button class="btn btn-ghost btn-sm" onclick="calNext()">Next →</button></div>
-          <div class="cal-grid" id="cal-grid"></div>
-          <div id="cal-detail" style="margin-top:1rem"></div>
-        </div></div>
-      </section>
-
-      <!-- SETTINGS -->
-      <section class="page" id="page-settings">
-        <div style="max-width:640px">
-          <div class="tabs">
-            <button class="tab active" data-stab="general">General</button>
-            <button class="tab" data-stab="email">Email &amp; Reminders</button>
-            <button class="tab" data-stab="account">Account</button>
-          </div>
-          <div id="stab-general">
-            <div class="card"><div class="card-header"><h3>Reminder Timing</h3></div><div class="card-body">
-              <div id="msg-general"></div>
-              <div class="form-row"><div class="form-group"><label>First reminder (days before due)</label><input type="number" id="s-r1" min="1" max="60"/></div><div class="form-group"><label>Second reminder (days before due)</label><input type="number" id="s-r2" min="1" max="60"/></div></div>
-              <div class="flex gap-2"><button class="btn btn-primary" onclick="saveGeneralSettings()">Save Settings</button><button class="btn btn-ghost" onclick="triggerReminders()">Trigger Reminders Now</button></div>
-            </div></div>
-          </div>
-          <div id="stab-email" class="hidden">
-            <div class="card"><div class="card-header"><h3>Email Notifications</h3></div><div class="card-body">
-              <div id="msg-email"></div>
-              <div class="form-group flex items-center gap-2"><label class="toggle"><input type="checkbox" id="s-email-on" onchange="onToggleEmail()"/><span class="toggle-slider"></span></label><span style="font-size:.9rem">Enable email reminders</span></div>
-              <div id="email-fields" style="opacity:.5;pointer-events:none">
-                <p class="text-sm text-muted" style="margin-bottom:1rem;padding:.75rem;background:#fffbeb;border-radius:8px;border:1px solid #fde68a">💡 <strong>Gmail users:</strong> Use an App Password (not your regular password). Go to <strong>myaccount.google.com → Security → App Passwords</strong>. Host: smtp.gmail.com, Port: 587.</p>
-                <div class="form-row"><div class="form-group"><label>SMTP Host</label><input type="text" id="s-smtp-host" placeholder="smtp.gmail.com"/></div><div class="form-group"><label>SMTP Port</label><input type="number" id="s-smtp-port" placeholder="587"/></div></div>
-                <div class="form-row"><div class="form-group"><label>Your Gmail Address</label><input type="email" id="s-smtp-user" placeholder="you@gmail.com"/></div><div class="form-group"><label>App Password</label><input type="password" id="s-smtp-pass" placeholder="Leave blank to keep current"/></div></div>
-                <div class="form-row"><div class="form-group"><label>Your Name</label><input type="text" id="s-owner-name" placeholder="Business Owner"/></div><div class="form-group"><label>Send reminders to (your email)</label><input type="email" id="s-owner-email" placeholder="you@gmail.com"/></div></div>
-              </div>
-              <div class="flex gap-2" style="margin-top:.5rem"><button class="btn btn-primary" onclick="saveEmailSettings()">Save Email Settings</button><button class="btn btn-ghost" onclick="testEmail()">Send Test Email</button></div>
-            </div></div>
-            <div class="card"><div class="card-header"><h3>WhatsApp Business API (auto-send invoices)</h3></div><div class="card-body">
-              <div id="msg-wa"></div>
-              <p class="text-sm text-muted" style="margin-bottom:1rem;padding:.75rem;background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe">💬 Sends the invoice image straight to the customer's WhatsApp via Meta's Cloud API. Requires an approved <strong>invoice_notification</strong> template. Get the Phone Number ID &amp; token from your Meta app → WhatsApp → API Setup.</p>
-              <div class="form-group flex items-center gap-2"><label class="toggle"><input type="checkbox" id="s-wa-on"/><span class="toggle-slider"></span></label><span style="font-size:.9rem">Enable WhatsApp Cloud API sending</span></div>
-              <div class="form-row"><div class="form-group"><label>Phone Number ID</label><input type="text" id="s-wa-phone-id" placeholder="e.g. 965707529956306"/></div><div class="form-group"><label>Access Token</label><input type="password" id="s-wa-token" placeholder="Leave blank to keep current"/></div></div>
-              <div class="form-row"><div class="form-group"><label>Template Name</label><input type="text" id="s-wa-template" placeholder="invoice_notification"/></div><div class="form-group"><label>Template Language</label><input type="text" id="s-wa-lang" placeholder="en"/></div></div>
-              <div class="flex gap-2" style="margin-top:.5rem"><button class="btn btn-primary" onclick="saveWhatsAppSettings()">Save WhatsApp Settings</button></div>
-            </div></div>
-          </div>
-          <div id="stab-account" class="hidden">
-            <div class="card" style="margin-bottom:1rem"><div class="card-header"><h3>Profile</h3></div><div class="card-body">
-              <div id="msg-profile"></div>
-              <div class="form-row"><div class="form-group"><label>Display Name</label><input type="text" id="s-name"/></div><div class="form-group"><label>Email</label><input type="email" id="s-acc-email"/></div></div>
-              <button class="btn btn-primary" onclick="saveProfile()">Update Profile</button>
-            </div></div>
-            <div class="card"><div class="card-header"><h3>Change Password</h3></div><div class="card-body">
-              <div id="msg-pwd"></div>
-              <div class="form-group"><label>Current Password</label><input type="password" id="s-cur-pwd"/></div>
-              <div class="form-row"><div class="form-group"><label>New Password</label><input type="password" id="s-new-pwd"/></div><div class="form-group"><label>Confirm New Password</label><input type="password" id="s-cnf-pwd"/></div></div>
-              <button class="btn btn-primary" onclick="changePassword()">Change Password</button>
-            </div></div>
-          </div>
-        </div>
-      </section>
-      <!-- INVOICES -->
-      <section class="page" id="page-invoices">
-        <div class="toolbar">
-          <div class="filter-bar">
-            <div class="search-bar"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="color:var(--text-muted)"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0016 9.5 6.5 6.5 0 109.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg><input id="inv-search" type="text" placeholder="Search invoices…" oninput="loadInvoices()"/></div>
-            <select id="inv-flt-status" onchange="loadInvoices()"><option value="">All Statuses</option><option value="Draft">Draft</option><option value="Sent">Sent</option><option value="Paid">Paid</option></select>
-          </div>
-          <button class="btn btn-primary" onclick="openInvoiceModal()"><svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>Create Invoice</button>
-        </div>
-        <div class="card"><div class="table-wrap"><table><thead><tr><th>Invoice ID</th><th>Customer</th><th>Amount</th><th>Date</th><th>Due Date</th><th>Status</th><th>Actions</th></tr></thead><tbody id="invoices-tbody"><tr class="empty-row"><td colspan="7">Loading…</td></tr></tbody></table></div></div>
-      </section>
+      <div class="card">
+        <div class="card-title">Overdue Payments</div>
+        <div id="dash-overdue"></div>
+      </div>
     </div>
-  </main>
-</div>
 
-<div class="notif-panel" id="notif-panel">
-  <div class="notif-panel-header"><h3>🔔 Notifications</h3><div class="flex gap-2"><button class="btn btn-sm btn-ghost" onclick="markAllRead()">Mark all read</button><button class="btn-icon" onclick="toggleNotifPanel()"><svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div></div>
-  <div class="notif-list" id="notif-list"><p class="text-muted text-sm" style="padding:1rem;text-align:center">No notifications</p></div>
-</div>
-<div id="notif-backdrop" onclick="toggleNotifPanel()" style="display:none;position:fixed;inset:0;z-index:199;background:rgba(0,0,0,.15)"></div>
-</div>
-
-<!-- ══ MODALS ══ -->
-
-<!-- Add/Edit Customer -->
-<div class="modal-overlay" id="modal-invoice">
-  <div class="modal">
-    <div class="modal-header"><h3 id="inv-modal-title">Create Invoice</h3><button class="btn-icon" onclick="closeModal('modal-invoice')"><svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div>
-    <div class="modal-body">
-      <div id="inv-err" class="alert alert-error hidden"></div>
-      <input type="hidden" id="inv-id"/>
-      <div class="form-row"><div class="form-group"><label>Customer <span class="req">*</span></label><select id="inv-customer" onchange="onInvCustomerChange()"><option value="">Select customer…</option></select></div><div class="form-group"><label>Amount <span class="req">*</span></label><input type="number" id="inv-amount" min="0" step="0.01" placeholder="0.00"/></div></div>
-      <div class="form-group hidden" id="inv-periods-wrap"><label>Months covered <span class="text-muted" style="font-weight:400">— tick the periods this invoice is for</span></label><div id="inv-periods" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:.5rem"></div></div>
-      <div class="form-group"><label>Description</label><textarea id="inv-content" placeholder="Services, items, description…" style="min-height:100px"></textarea></div>
-      <div class="form-row"><div class="form-group"><label>Invoice Date <span class="req">*</span></label><input type="date" id="inv-date"/></div><div class="form-group"><label>Due Date</label><input type="date" id="inv-due-date"/></div></div>
-      <div class="form-group"><label>Status</label><select id="inv-status"><option value="Draft">Draft</option><option value="Sent">Sent</option><option value="Paid">Paid</option></select></div>
+    <!-- CUSTOMERS -->
+    <div id="page-customers" class="page">
+      <div class="flex-between">
+        <div class="search-bar" style="margin:0">
+          <input type="text" id="cust-search" placeholder="Search customers..." oninput="searchCustomers()" style="width:260px"/>
+        </div>
+        <button class="btn btn-primary" onclick="openCustomerModal()">+ Add Customer</button>
+      </div>
+      <div class="card" style="padding:0">
+        <div class="table-wrap"><table id="cust-table">
+          <thead><tr><th>Name</th><th>Company</th><th>Phone</th><th>Frequency</th><th>Amount</th><th>Next Due</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="cust-tbody"></tbody>
+        </table></div>
+      </div>
     </div>
-    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-invoice')">Cancel</button><button class="btn btn-primary" onclick="saveInvoice()">Save Invoice</button></div>
+
+    <!-- PAYMENTS HISTORY -->
+    <div id="page-payments" class="page">
+      <div class="flex-between">
+        <div class="flex">
+          <select id="pay-filter-month" onchange="loadPayments()" style="width:160px">
+            <option value="">All Months</option>
+          </select>
+          <select id="pay-filter-freq" onchange="loadPayments()" style="width:160px">
+            <option value="">All Frequencies</option>
+            <option>monthly</option><option>bimonthly</option><option>quarterly</option>
+            <option>every4months</option><option>every6months</option><option>yearly</option>
+          </select>
+        </div>
+        <div style="font-size:13px;color:var(--muted)" id="pay-summary"></div>
+      </div>
+      <div class="card" style="padding:0">
+        <div class="table-wrap"><table>
+          <thead><tr><th>Date</th><th>Customer</th><th>Amount</th><th>Frequency</th><th>Source</th><th>Notes</th><th>Actions</th></tr></thead>
+          <tbody id="pay-tbody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- DUE PAYMENTS -->
+    <div id="page-due-payments" class="page">
+      <div class="card" style="padding:0">
+        <div class="table-wrap"><table>
+          <thead><tr><th>Customer</th><th>Company</th><th>Phone</th><th>Amount</th><th>Due Date</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="due-tbody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- OVERDUE -->
+    <div id="page-overdue" class="page">
+      <div class="card" style="padding:0">
+        <div class="table-wrap"><table>
+          <thead><tr><th>Customer</th><th>Company</th><th>Phone</th><th>Amount</th><th>Due Date</th><th>Days Overdue</th><th>Actions</th></tr></thead>
+          <tbody id="overdue-tbody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- INVOICES -->
+    <div id="page-invoices" class="page">
+      <div class="flex-between">
+        <div class="tabs" style="border:none;margin:0">
+          <div class="tab active" onclick="filterInvoices('all',this)">All</div>
+          <div class="tab" onclick="filterInvoices('Draft',this)">Draft</div>
+          <div class="tab" onclick="filterInvoices('Sent',this)">Sent</div>
+          <div class="tab" onclick="filterInvoices('Paid',this)">Paid</div>
+        </div>
+        <button class="btn btn-primary" onclick="openNewInvoiceModal()">+ New Invoice</button>
+      </div>
+      <div class="card" style="padding:0">
+        <div class="table-wrap"><table>
+          <thead><tr><th>Invoice #</th><th>Customer</th><th>Amount</th><th>Date</th><th>Due</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="inv-tbody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- QUICK INVOICE -->
+    <div id="page-quick-invoice" class="page">
+      <div style="max-width:700px">
+        <div class="card">
+          <div class="card-title">Quick Invoice &mdash; Extra Services</div>
+          <p style="color:var(--muted);font-size:13px;margin-bottom:20px">Create a one-off invoice for extra services. When marked Paid, it shows in Payment History automatically.</p>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Customer *</label>
+              <select id="qi-customer"></select>
+            </div>
+            <div class="form-group">
+              <label>Invoice Date *</label>
+              <input type="date" id="qi-date"/>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Due Date</label>
+              <input type="date" id="qi-due"/>
+            </div>
+            <div class="form-group">
+              <label>Service Description (optional shorthand)</label>
+              <input type="text" id="qi-desc" placeholder="e.g. Website maintenance fee"/>
+            </div>
+          </div>
+          <hr class="divider"/>
+          <div class="inv-items-header">
+            <span>Item Description</span><span>Qty</span><span>Unit Price</span><span></span>
+          </div>
+          <div id="qi-items"></div>
+          <button class="btn btn-ghost btn-sm" onclick="addQiItem()" style="margin-top:4px">+ Add Item</button>
+          <hr class="divider"/>
+          <div style="display:flex;justify-content:flex-end;align-items:center;gap:16px;margin-bottom:16px">
+            <span style="color:var(--muted);font-size:13px">Total:</span>
+            <span id="qi-total" style="font-size:22px;font-weight:700;color:var(--green)">PKR 0</span>
+          </div>
+          <div class="form-group">
+            <label>Notes</label>
+            <textarea id="qi-notes" rows="2" placeholder="Optional notes"></textarea>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:flex-end">
+            <button class="btn btn-ghost" onclick="saveQiInvoice('Draft')">Save as Draft</button>
+            <button class="btn btn-primary" onclick="saveQiInvoice('Sent')">Create &amp; Mark Sent</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXPENSES -->
+    <div id="page-expenses" class="page">
+      <div class="flex-between">
+        <div></div>
+        <button class="btn btn-primary" onclick="openExpenseModal()">+ Add Expense</button>
+      </div>
+      <div class="stat-grid" id="exp-stats"></div>
+      <div class="card" style="padding:0">
+        <div class="table-wrap"><table>
+          <thead><tr><th>Name</th><th>Category</th><th>Amount</th><th>Frequency</th><th>Next Due</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="exp-tbody"></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- CALENDAR -->
+    <div id="page-calendar" class="page">
+      <div class="card">
+        <div class="flex-between" style="margin-bottom:16px">
+          <button class="btn btn-ghost btn-sm" onclick="calPrev()">&larr; Prev</button>
+          <h3 id="cal-title" style="font-size:16px;font-weight:600"></h3>
+          <button class="btn btn-ghost btn-sm" onclick="calNext()">Next &rarr;</button>
+        </div>
+        <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center">
+          <div style="padding:8px;font-size:11px;color:var(--muted);font-weight:600">SUN</div>
+          <div style="padding:8px;font-size:11px;color:var(--muted);font-weight:600">MON</div>
+          <div style="padding:8px;font-size:11px;color:var(--muted);font-weight:600">TUE</div>
+          <div style="padding:8px;font-size:11px;color:var(--muted);font-weight:600">WED</div>
+          <div style="padding:8px;font-size:11px;color:var(--muted);font-weight:600">THU</div>
+          <div style="padding:8px;font-size:11px;color:var(--muted);font-weight:600">FRI</div>
+          <div style="padding:8px;font-size:11px;color:var(--muted);font-weight:600">SAT</div>
+        </div>
+        <div id="cal-days" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px"></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="page-settings" class="page">
+      <div style="max-width:560px;display:flex;flex-direction:column;gap:16px">
+        <div class="card">
+          <div class="card-title">Business Info</div>
+          <div class="form-group"><label>Business Name</label><input id="s-biz" type="text"/></div>
+          <div class="form-group"><label>Owner Name</label><input id="s-owner" type="text"/></div>
+          <div class="form-group"><label>Owner Email</label><input id="s-email" type="email"/></div>
+          <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+        </div>
+        <div class="card">
+          <div class="card-title">Reminder Settings</div>
+          <div class="form-row">
+            <div class="form-group"><label>Days Before (1st reminder)</label><input id="s-rem1" type="number" min="1" max="30"/></div>
+            <div class="form-group"><label>Days Before (2nd reminder)</label><input id="s-rem2" type="number" min="1" max="30"/></div>
+          </div>
+          <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+        </div>
+        <div class="card">
+          <div class="card-title">Change Password</div>
+          <div class="form-group"><label>Current Password</label><input id="s-curpass" type="password"/></div>
+          <div class="form-group"><label>New Password</label><input id="s-newpass" type="password"/></div>
+          <div class="form-group"><label>Confirm New Password</label><input id="s-confpass" type="password"/></div>
+          <button class="btn btn-primary" onclick="changePassword()">Change Password</button>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
-<div class="modal-overlay" id="modal-invoice-view">
-  <div class="modal" style="max-width:700px">
-    <div class="modal-header">
-      <h3 id="inv-view-title">Invoice</h3>
-      <button class="btn-icon" onclick="closeModal('modal-invoice-view')">&#215;</button>
-    </div>
-    <div class="modal-body" id="inv-view-body"></div>
-    <div class="modal-footer" id="inv-view-actions" style="flex-wrap:wrap;gap:.5rem"></div>
-  </div>
-</div>
+
+<!-- MODALS -->
+
+<!-- Customer Modal -->
 <div class="modal-overlay" id="modal-customer">
-  <div class="modal">
-    <div class="modal-header"><h3 id="cust-modal-title">Add Customer</h3><button class="btn-icon" onclick="closeModal('modal-customer')"><svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div>
-    <div class="modal-body">
-      <div id="cust-err" class="alert alert-error hidden"></div>
-      <input type="hidden" id="cust-id"/>
-      <div class="form-row"><div class="form-group"><label>Full Name <span class="req">*</span></label><input type="text" id="c-name" placeholder="e.g. Ahmed Khan"/></div><div class="form-group"><label>Company / Business Name</label><input type="text" id="c-company" placeholder="Optional"/></div></div>
-      <div class="form-row"><div class="form-group"><label>Phone Number</label><input type="text" id="c-phone" placeholder="+92 300 1234567"/></div><div class="form-group"><label>Email Address</label><input type="email" id="c-email" placeholder="customer@email.com"/></div></div>
-      <div class="form-group"><label>Address</label><input type="text" id="c-address" placeholder="Optional"/></div>
-      <div class="section-divider">Payment Setup</div>
-      <div class="form-row">
-        <div class="form-group"><label>Payment Frequency <span class="req">*</span></label><select id="c-freq" onchange="onCustFreqChange()"><option value="monthly">Monthly</option><option value="bimonthly">Every 2 Months</option><option value="every4months">Every 4 Months</option><option value="every6months">Every 6 Months</option><option value="yearly">Yearly</option><option value="custom_days">Custom – Days</option><option value="custom_months">Custom – Months</option></select></div>
-        <div class="form-group"><label>Payment Amount <span class="req">*</span></label><input type="number" id="c-amount" min="0" step="0.01" placeholder="0.00"/></div>
-      </div>
-      <div class="form-group hidden" id="c-custom-wrap"><label>Custom Interval <span class="req">*</span></label><input type="number" id="c-freq-val" min="1" placeholder="e.g. 45 days or 3 months"/></div>
-      <div class="form-group"><label>Initial / Next Due Date <span class="req">*</span></label><input type="date" id="c-next-due"/></div>
-      <div class="section-divider">Additional Info</div>
-      <div class="form-group"><label>Notes</label><textarea id="c-notes" placeholder="Any additional notes…"></textarea></div>
-      <div class="form-group" style="display:flex;align-items:center;gap:.75rem;padding-top:.25rem"><label class="toggle"><input type="checkbox" id="c-whatsapp"/><span class="toggle-slider"></span></label><span style="font-size:.9rem">📱 WhatsApp consent — this number is on WhatsApp (allow invoice &amp; reminder messages)</span></div>
+<div class="modal">
+  <h3 id="cust-modal-title">Add Customer</h3>
+  <input type="hidden" id="cust-id"/>
+  <div class="form-row">
+    <div class="form-group"><label>Full Name *</label><input id="cust-name" type="text" placeholder="John Doe"/></div>
+    <div class="form-group"><label>Company</label><input id="cust-company" type="text" placeholder="ABC Ltd"/></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>Phone</label><input id="cust-phone" type="text" placeholder="+92 300 0000000"/></div>
+    <div class="form-group"><label>Email</label><input id="cust-email" type="email" placeholder="email@example.com"/></div>
+  </div>
+  <div class="form-group"><label>Address</label><input id="cust-address" type="text"/></div>
+  <hr class="divider"/>
+  <div class="card-title" style="margin-bottom:12px">Payment Schedule</div>
+  <div class="form-row">
+    <div class="form-group">
+      <label>Payment Frequency</label>
+      <select id="cust-freq" onchange="toggleFreqValue()">
+        <option value="monthly">Monthly</option>
+        <option value="bimonthly">Every 2 Months</option>
+        <option value="quarterly">Every 3 Months</option>
+        <option value="every4months">Every 4 Months</option>
+        <option value="every6months">Every 6 Months</option>
+        <option value="yearly">Yearly</option>
+        <option value="custom_days">Custom (Days)</option>
+        <option value="custom_months">Custom (Months)</option>
+      </select>
     </div>
-    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-customer')">Cancel</button><button class="btn btn-primary" onclick="saveCustomer()">Save Customer</button></div>
+    <div class="form-group" id="freq-val-group" style="display:none">
+      <label>Interval Value</label>
+      <input id="cust-freq-val" type="number" min="1" value="1"/>
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>Payment Amount (PKR)</label><input id="cust-amount" type="number" min="0" placeholder="0"/></div>
+    <div class="form-group"><label>Next Due Date</label><input id="cust-due" type="date"/></div>
+  </div>
+  <div class="form-group"><label>Notes</label><textarea id="cust-notes" rows="2"></textarea></div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeModal('modal-customer')">Cancel</button>
+    <button class="btn btn-primary" onclick="saveCustomer()">Save Customer</button>
   </div>
 </div>
+</div>
 
-<!-- Mark as Paid -->
+<!-- Mark Paid Modal -->
 <div class="modal-overlay" id="modal-mark-paid">
-  <div class="modal" style="max-width:420px">
-    <div class="modal-header"><h3>✅ Mark as Paid</h3><button class="btn-icon" onclick="closeModal('modal-mark-paid')"><svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div>
-    <div class="modal-body">
-      <p id="mp-customer-name" style="font-weight:600;font-size:1.05rem;margin-bottom:1rem"></p>
-      <div id="mp-err" class="alert alert-error hidden"></div>
-      <input type="hidden" id="mp-cust-id"/>
-      <div class="form-row">
-        <div class="form-group"><label>Payment Amount <span class="req">*</span></label><input type="number" id="mp-amount" min="0" step="0.01"/></div>
-        <div class="form-group"><label>Payment Date <span class="req">*</span></label><input type="date" id="mp-date"/></div>
-      </div>
-      <div class="form-group"><label>Notes (optional)</label><input type="text" id="mp-notes" placeholder="e.g. paid via bank transfer"/></div>
-      <div class="alert alert-info" style="margin-top:.5rem;font-size:.83rem">Next due date will be automatically calculated based on payment frequency.</div>
-    </div>
-    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-mark-paid')">Cancel</button><button class="btn btn-success" onclick="submitMarkPaid()">Confirm Payment</button></div>
+<div class="modal" style="max-width:420px">
+  <h3>Mark Payment Received</h3>
+  <input type="hidden" id="mp-cust-id"/>
+  <div class="form-group"><label>Customer</label><input id="mp-cust-name" type="text" readonly style="opacity:.7"/></div>
+  <div class="form-row">
+    <div class="form-group"><label>Amount (PKR)</label><input id="mp-amount" type="number" min="0"/></div>
+    <div class="form-group"><label>Payment Date</label><input id="mp-date" type="date"/></div>
+  </div>
+  <div class="form-group"><label>Notes</label><input id="mp-notes" type="text" placeholder="Optional"/></div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeModal('modal-mark-paid')">Cancel</button>
+    <button class="btn btn-success" onclick="doMarkPaid()">Confirm Payment</button>
   </div>
 </div>
-
-<!-- Customer Detail -->
-<div class="modal-overlay" id="modal-cust-detail">
-  <div class="modal" style="max-width:680px">
-    <div class="modal-header"><h3 id="cd-name">Customer</h3><button class="btn-icon" onclick="closeModal('modal-cust-detail')"><svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div>
-    <div class="modal-body">
-      <div class="tabs"><button class="tab active" data-cdtab="info">Contact Info</button><button class="tab" data-cdtab="payments">Payment History</button></div>
-      <div id="cdtab-info">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;font-size:.875rem">
-          <div><span class="text-muted">Company:</span> <strong id="cd-company">—</strong></div>
-          <div><span class="text-muted">Phone:</span> <strong id="cd-phone">—</strong></div>
-          <div><span class="text-muted">Email:</span> <strong id="cd-email">—</strong></div>
-          <div><span class="text-muted">Address:</span> <strong id="cd-address">—</strong></div>
-          <div><span class="text-muted">Frequency:</span> <strong id="cd-freq">—</strong></div>
-          <div><span class="text-muted">Amount:</span> <strong id="cd-amount">—</strong></div>
-          <div><span class="text-muted">Next Due:</span> <strong id="cd-next-due">—</strong></div>
-          <div><span class="text-muted">Status:</span> <span id="cd-status"></span></div>
-        </div>
-        <div id="cd-notes-wrap" class="hidden" style="margin-top:.75rem;font-size:.875rem"><span class="text-muted">Notes:</span> <span id="cd-notes"></span></div>
-      </div>
-      <div id="cdtab-payments" class="hidden">
-        <div class="table-wrap"><table><thead><tr><th>Amount</th><th>Date Paid</th><th>Frequency</th><th>Next Due After</th></tr></thead><tbody id="cd-pay-tbody"></tbody></table></div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modal-cust-detail')">Close</button>
-      <button class="btn btn-primary btn-sm" id="cd-edit-btn">Edit Customer</button>
-    </div>
-  </div>
 </div>
 
-<!-- Confirm Delete -->
-<div class="modal-overlay" id="modal-confirm">
-  <div class="modal" style="max-width:380px">
-    <div class="modal-header"><h3>Confirm Delete</h3></div>
-    <div class="modal-body"><p id="confirm-text">Are you sure?</p></div>
-    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-confirm')">Cancel</button><button class="btn btn-danger" id="confirm-ok">Delete</button></div>
+<!-- New Invoice Modal -->
+<div class="modal-overlay" id="modal-invoice">
+<div class="modal modal-lg">
+  <h3 id="inv-modal-title">New Invoice</h3>
+  <input type="hidden" id="inv-id"/>
+  <div class="form-row">
+    <div class="form-group"><label>Customer *</label><select id="inv-customer"></select></div>
+    <div class="form-group"><label>Invoice Date *</label><input type="date" id="inv-date"/></div>
   </div>
+  <div class="form-row">
+    <div class="form-group"><label>Due Date</label><input type="date" id="inv-due"/></div>
+    <div class="form-group"><label>Status</label>
+      <select id="inv-status"><option>Draft</option><option>Sent</option><option>Paid</option></select>
+    </div>
+  </div>
+  <hr class="divider"/>
+  <div class="inv-items-header">
+    <span>Item Description</span><span>Qty</span><span>Unit Price</span><span></span>
+  </div>
+  <div id="inv-items"></div>
+  <button class="btn btn-ghost btn-sm" onclick="addInvItem()" style="margin-top:4px">+ Add Item</button>
+  <hr class="divider"/>
+  <div style="display:flex;justify-content:flex-end;align-items:center;gap:16px;margin-bottom:12px">
+    <span style="color:var(--muted)">Total:</span>
+    <span id="inv-total" style="font-size:20px;font-weight:700;color:var(--green)">PKR 0</span>
+  </div>
+  <div class="form-group"><label>Notes</label><textarea id="inv-notes" rows="2"></textarea></div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeModal('modal-invoice')">Cancel</button>
+    <button class="btn btn-primary" onclick="saveInvoice()">Save Invoice</button>
+  </div>
+</div>
+</div>
 
+<!-- Invoice View Modal -->
+<div class="modal-overlay" id="modal-inv-view">
+<div class="modal modal-lg">
+  <div class="flex-between" style="margin-bottom:16px">
+    <h3>Invoice</h3>
+    <button class="btn btn-ghost" onclick="closeModal('modal-inv-view')">&#x2715;</button>
+  </div>
+  <div id="inv-view-content"></div>
+  <div class="modal-footer" id="inv-view-actions"></div>
+</div>
+</div>
+
+<!-- Expense Modal -->
+<div class="modal-overlay" id="modal-expense">
+<div class="modal" style="max-width:480px">
+  <h3 id="exp-modal-title">Add Expense</h3>
+  <input type="hidden" id="exp-id"/>
+  <div class="form-row">
+    <div class="form-group"><label>Expense Name *</label><input id="exp-name" type="text" placeholder="e.g. Office Rent"/></div>
+    <div class="form-group"><label>Category</label>
+      <select id="exp-cat">
+        <option>General</option><option>Rent</option><option>Utilities</option>
+        <option>Salaries</option><option>Software</option><option>Marketing</option>
+        <option>Transport</option><option>Other</option>
+      </select>
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>Amount (PKR) *</label><input id="exp-amount" type="number" min="0" placeholder="0"/></div>
+    <div class="form-group"><label>Frequency</label>
+      <select id="exp-freq" onchange="toggleExpFreqVal()">
+        <option value="monthly">Monthly</option>
+        <option value="yearly">Yearly</option>
+        <option value="quarterly">Quarterly</option>
+        <option value="every6months">Every 6 Months</option>
+        <option value="custom_months">Custom (Months)</option>
+        <option value="custom_days">Custom (Days)</option>
+        <option value="one_time">One Time</option>
+      </select>
+    </div>
+  </div>
+  <div class="form-row">
+    <div class="form-group" id="exp-freq-val-group" style="display:none">
+      <label>Interval Value</label><input id="exp-freq-val" type="number" min="1" value="1"/>
+    </div>
+    <div class="form-group"><label>Next Due Date</label><input id="exp-due" type="date"/></div>
+  </div>
+  <div class="form-group"><label>Notes</label><textarea id="exp-notes" rows="2"></textarea></div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeModal('modal-expense')">Cancel</button>
+    <button class="btn btn-primary" onclick="saveExpense()">Save Expense</button>
+  </div>
+</div>
+</div>
+
+<!-- Mark Expense Paid Modal -->
+<div class="modal-overlay" id="modal-exp-paid">
+<div class="modal" style="max-width:420px">
+  <h3>Mark Expense Paid</h3>
+  <input type="hidden" id="ep-id"/>
+  <div class="form-group"><label>Expense</label><input id="ep-name" type="text" readonly style="opacity:.7"/></div>
+  <div class="form-row">
+    <div class="form-group"><label>Amount (PKR)</label><input id="ep-amount" type="number" min="0"/></div>
+    <div class="form-group"><label>Paid Date</label><input id="ep-date" type="date"/></div>
+  </div>
+  <div class="form-group"><label>Notes</label><input id="ep-notes" type="text" placeholder="Optional"/></div>
+  <div class="modal-footer">
+    <button class="btn btn-ghost" onclick="closeModal('modal-exp-paid')">Cancel</button>
+    <button class="btn btn-danger" onclick="doMarkExpPaid()">Confirm Paid</button>
+  </div>
+</div>
+</div>
+
+<!-- Notifications Panel -->
+<div class="modal-overlay" id="modal-notifs">
+<div class="modal" style="max-width:480px">
+  <div class="flex-between" style="margin-bottom:16px">
+    <h3>Notifications</h3>
+    <button class="btn btn-ghost btn-sm" onclick="markAllRead()">Mark all read</button>
+  </div>
+  <div id="notif-list" style="max-height:400px;overflow-y:auto;display:flex;flex-direction:column;gap:8px"></div>
+  <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-notifs')">Close</button></div>
+</div>
+</div>
 
 <script>
-'use strict';
-let TOKEN = localStorage.getItem('pr_token') || '';
-let ME = null;
-let calYear = new Date().getFullYear(), calMonth = new Date().getMonth();
-const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const $ = id => document.getElementById(id);
-async function api(method, path, data){
-  const r = await fetch('/api'+path,{method,headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN},body:data?JSON.stringify(data):undefined});
-  const json = await r.json();
-  if(!r.ok) throw new Error(json.error||'Server error');
-  return json;
-}
-function fmtDate(d){if(!d)return '—';return new Date(d+'T00:00:00').toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'});}
-function fmtAmt(a){return 'Rs '+Number(a||0).toLocaleString('en-PK',{minimumFractionDigits:0,maximumFractionDigits:0});}
-function fmtFreq(f,v){const m={monthly:'Monthly',bimonthly:'Every 2 Months',every4months:'Every 4 Months',every6months:'Every 6 Months',yearly:'Yearly',custom_days:`Every ${v} Days`,custom_months:`Every ${v} Months`};return m[f]||f;}
-function badge(s){const lbl={paid:'Paid',on_track:'On Track',due_today:'Due Today',due_soon:'Due Soon',overdue:'Overdue',no_setup:'Not Set Up',reminder:'Reminder',payment_received:'Received',due:'Due',info:'Info'};return `<span class="badge badge-${s}">${lbl[s]||s}</span>`;}
-function flash(id,msg,type='success'){const el=$(id);if(!el)return;el.className=`alert alert-${type}`;el.textContent=msg;el.classList.remove('hidden');setTimeout(()=>el.classList.add('hidden'),4000);}
-function openModal(id){$(id).classList.add('open');}
-function closeModal(id){$(id).classList.remove('open');}
-function timeAgo(d){const s=(Date.now()-new Date(d))/1000;if(s<60)return 'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
-function esc(s){if(!s)return '';const d=document.createElement('div');d.textContent=String(s);return d.innerHTML;}
-function normalizePhone(phone){if(!phone)return '';let p=String(phone).replace(/[^0-9+]/g,'');if(p.startsWith('+'))p=p.slice(1);if(p.startsWith('0'))p='92'+p.slice(1);return p;}
+// ── State ──────────────────────────────────────────────
+let token = localStorage.getItem('token') || '';
+let currentUser = null;
+let allCustomers = [];
+let allInvoices = [];
+let allExpenses = [];
+let invFilter = 'all';
+let calYear, calMonth;
+let barChart = null;
+let qiItems = [];
+let invItems = [];
+let sigDataUrl = null;
 
-// ── Login ──
-$('login-form').addEventListener('submit',async e=>{
-  e.preventDefault();
-  try{const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:$('lu').value,password:$('lp').value})});const d=await r.json();if(!r.ok)throw new Error(d.error||'Login failed');TOKEN=d.token;ME=d.user;localStorage.setItem('pr_token',TOKEN);bootApp();}
-  catch(e){$('login-error').textContent=e.message;$('login-error').classList.remove('hidden');}
+// ── API ────────────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token } };
+  if (body) opts.body = JSON.stringify(body);
+  try {
+    const r = await fetch('/api' + path, opts);
+    if (r.status === 401) { logout(); return null; }
+    return r.json();
+  } catch(e) { console.error('API error', path, e); return null; }
+}
+
+// ── Auth ───────────────────────────────────────────────
+async function doLogin() {
+  const username = document.getElementById('login-user').value.trim();
+  const password = document.getElementById('login-pass').value;
+  const err = document.getElementById('login-err');
+  err.style.display = 'none';
+  try {
+    const r = await fetch('/api/login', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({username, password})
+    });
+    const data = await r.json();
+    if (!r.ok) { err.textContent = data.error || 'Login failed'; err.style.display = 'block'; return; }
+    token = data.token; currentUser = data.user;
+    localStorage.setItem('token', token);
+    showApp();
+  } catch(e) { err.textContent = 'Connection error'; err.style.display = 'block'; }
+}
+document.getElementById('login-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+document.getElementById('login-user').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+
+function logout() {
+  token = ''; localStorage.removeItem('token');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-page').style.display = 'flex';
+}
+
+async function showApp() {
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('sidebar-user').textContent = currentUser?.username || 'admin';
+  await Promise.all([loadCustomers(), loadSignature()]);
+  navigateTo('dashboard');
+  loadNotifCount();
+  setInterval(loadNotifCount, 60000);
+}
+
+async function loadSignature() {
+  const r = await api('GET', '/signature');
+  if (r && r.signature) sigDataUrl = r.signature;
+}
+
+// ── Navigation ─────────────────────────────────────────
+const pageTitles = {
+  dashboard:'Dashboard', customers:'Customers', payments:'Payment History',
+  'due-payments':'Due Payments', overdue:'Overdue', invoices:'Invoices',
+  'quick-invoice':'Quick Invoice', expenses:'Expenses', calendar:'Calendar', settings:'Settings'
+};
+
+document.querySelectorAll('.nav-item').forEach(el => {
+  el.addEventListener('click', () => navigateTo(el.dataset.page));
 });
-function logout(){TOKEN='';ME=null;localStorage.removeItem('pr_token');$('app').style.display='none';$('login-page').style.display='flex';}
-async function bootApp(){
-  try{ME=await api('GET','/auth/me');$('user-name').textContent=ME.name;$('user-email').textContent=ME.email;$('user-avatar').textContent=ME.name[0].toUpperCase();$('s-name').value=ME.name;$('s-acc-email').value=ME.email;$('login-page').style.display='none';$('app').style.display='block';navigate('dashboard');loadNotifBadge();setInterval(loadNotifBadge,30000);}
-  catch{logout();}
+
+function navigateTo(page) {
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.page === page));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const pg = document.getElementById('page-' + page);
+  if (pg) pg.classList.add('active');
+  document.getElementById('page-title').textContent = pageTitles[page] || page;
+  const loaders = {
+    dashboard: loadDashboard, customers: renderCustomers, payments: loadPayments,
+    'due-payments': loadDuePayments, overdue: loadOverdue, invoices: loadInvoices,
+    'quick-invoice': initQI, expenses: loadExpenses, calendar: initCalendar, settings: loadSettings
+  };
+  if (loaders[page]) loaders[page]();
 }
 
-// ── Navigation ──
-function navigate(page){
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  $('page-'+page).classList.add('active');
-  const navEl = document.querySelector(`[data-page="${page}"]`);
-  if(navEl) navEl.classList.add('active');
-  const titles={dashboard:'Dashboard',customers:'Customers','due-payments':'Due Payments','overdue-payments':'Overdue Payments',payments:'Payment History',calendar:'Calendar',settings:'Settings',invoices:'Invoices'};
-  $('page-title').textContent=titles[page]||page;
-  const loaders={dashboard:loadDashboard,customers:loadCustomers,'due-payments':loadDuePayments,'overdue-payments':loadOverduePayments,payments:loadPayments,calendar:renderCalendar,settings:loadSettings,invoices:loadInvoices};
-  loaders[page]?.();
-}
-$('sidebar-nav').addEventListener('click',e=>{const item=e.target.closest('[data-page]');if(item)navigate(item.dataset.page);});
-document.querySelectorAll('[data-stab]').forEach(btn=>btn.addEventListener('click',function(){document.querySelectorAll('[data-stab]').forEach(b=>b.classList.remove('active'));['general','email','account'].forEach(t=>$('stab-'+t).classList.add('hidden'));this.classList.add('active');$('stab-'+this.dataset.stab).classList.remove('hidden');}));
-document.querySelectorAll('[data-cdtab]').forEach(btn=>btn.addEventListener('click',function(){document.querySelectorAll('[data-cdtab]').forEach(b=>b.classList.remove('active'));['info','payments'].forEach(t=>$('cdtab-'+t).classList.add('hidden'));this.classList.add('active');$('cdtab-'+this.dataset.cdtab).classList.remove('hidden');}));
+// ── Dashboard ──────────────────────────────────────────
+async function loadDashboard() {
+  const summary = await api('GET', '/financial-summary');
+  if (!summary) return;
+  const { stats, chartData } = summary;
+  const totalIncome = (parseFloat(stats.received_this_month)||0) + (parseFloat(stats.invoice_received_this_month)||0);
+  const pending = (parseFloat(stats.due_this_month_amount)||0) - totalIncome;
 
-// ── Dashboard ──
-async function loadDashboard(){
-  const d=await api('GET','/dashboard');
-  $('stat-customers').textContent=d.stats.total_customers;$('stat-today').textContent=d.stats.due_today;$('stat-week').textContent=d.stats.due_in_7;$('stat-overdue').textContent=d.stats.overdue;
-  $('dash-upcoming').innerHTML=d.upcoming.length?d.upcoming.slice(0,8).map(p=>`<tr><td><strong>${esc(p.customer_name)}</strong><br><small class="text-muted">${esc(p.company||'')}</small></td><td>${fmtAmt(p.amount)}</td><td>${fmtDate(p.next_due_date)}</td><td>${badge(p.status)}</td></tr>`).join(''):`<tr class="empty-row"><td colspan="4">No upcoming payments 🎉</td></tr>`;
-  $('dash-overdue').innerHTML=d.overdue.length?d.overdue.map(p=>{const cyc=p.cycles_overdue||1;const tot=(p.total_due!=null)?p.total_due:p.amount;return `<tr><td><strong>${esc(p.customer_name)}</strong>${cyc>1?' <small class="text-muted">('+cyc+' cycles)</small>':''}</td><td>${fmtAmt(tot)}</td><td>${fmtDate(p.next_due_date)}</td><td><button class="btn btn-sm btn-success" onclick="openMarkPaid(${p.id},'${esc(p.customer_name)}',${p.amount})">Mark Paid</button></td></tr>`;}).join(''):`<tr class="empty-row"><td colspan="4">No overdue payments 🎉</td></tr>`;
-}
+  document.getElementById('dash-stats').innerHTML = `
+    <div class="stat-card blue"><div class="stat-label">Total Customers</div><div class="stat-value">${stats.total_customers}</div></div>
+    <div class="stat-card yellow"><div class="stat-label">Due Today</div><div class="stat-value">${stats.due_today}</div></div>
+    <div class="stat-card"><div class="stat-label">Due in 7 Days</div><div class="stat-value">${stats.due_in_7}</div></div>
+    <div class="stat-card red"><div class="stat-label">Overdue</div><div class="stat-value">${stats.overdue}</div></div>
+    <div class="stat-card yellow"><div class="stat-label">Due This Month</div><div class="stat-value" style="font-size:17px">${fmtPKR(stats.due_this_month_amount)}</div></div>
+    <div class="stat-card green"><div class="stat-label">Received This Month</div><div class="stat-value" style="font-size:17px">${fmtPKR(totalIncome)}</div></div>
+    <div class="stat-card"><div class="stat-label">Pending This Month</div><div class="stat-value" style="font-size:17px;color:var(--yellow)">${fmtPKR(Math.max(0,pending))}</div></div>
+    <div class="stat-card red"><div class="stat-label">Overdue Amount</div><div class="stat-value" style="font-size:17px">${fmtPKR(stats.overdue_amount)}</div></div>
+    <div class="stat-card purple"><div class="stat-label">Monthly Expenses</div><div class="stat-value" style="font-size:17px">${fmtPKR(stats.monthly_expenses)}</div></div>
+  `;
 
-// ── Customers ──
-async function loadCustomers(){
-  const q=$('cust-search').value.trim();
-  const list=await api('GET','/customers'+(q?'?search='+encodeURIComponent(q):''));
-  $('cust-tbody').innerHTML=list.length?list.map((c,i)=>`<tr><td>${i+1}</td><td><a href="#" onclick="viewCustomer(${c.id});return false" style="color:var(--primary);font-weight:600">${esc(c.name)}</a></td><td>${esc(c.company)||'—'}</td><td>${esc(c.phone)||'—'}</td><td>${c.payment_frequency&&c.payment_amount>0?fmtFreq(c.payment_frequency,c.frequency_value):'—'}</td><td>${c.payment_amount>0?fmtAmt(c.payment_amount):'—'}</td><td>${fmtDate(c.next_due_date)}</td><td>${badge(c.payment_status||'no_setup')}</td><td style="white-space:nowrap"><button class="btn-icon" title="View" onclick="viewCustomer(${c.id})">${ico('eye')}</button><button class="btn-icon" title="Edit" onclick="openCustomerModal(${c.id})">${ico('edit')}</button><button class="btn-icon" title="Delete" style="color:var(--danger)" onclick="confirmDel('customer',${c.id},'${esc(c.name)}')">  ${ico('delete')}</button></td></tr>`).join(''):`<tr class="empty-row"><td colspan="9">No customers found. Click "Add Customer" to get started!</td></tr>`;
-}
+  renderBarChart(chartData);
 
-function onCustFreqChange(){const f=$('c-freq').value;$('c-custom-wrap').classList.toggle('hidden',f!=='custom_days'&&f!=='custom_months');}
+  const dash = await api('GET', '/dashboard');
+  if (!dash) return;
 
-async function openCustomerModal(id=null){
-  $('cust-modal-title').textContent=id?'Edit Customer':'Add Customer';$('cust-id').value=id||'';$('cust-err').classList.add('hidden');
-  ['c-name','c-company','c-phone','c-email','c-address','c-notes','c-amount','c-freq-val'].forEach(f=>$(f).value='');$('c-whatsapp').checked=false;
-  $('c-freq').value='monthly';$('c-next-due').value='';onCustFreqChange();
-  if(id){
-    const c=await api('GET','/customers/'+id);
-    $('c-name').value=c.name||'';$('c-company').value=c.company||'';$('c-phone').value=c.phone||'';$('c-email').value=c.email||'';$('c-address').value=c.address||'';$('c-notes').value=c.notes||'';$('c-whatsapp').checked=!!c.whatsapp_consent;
-    $('c-freq').value=c.payment_frequency||'monthly';$('c-freq-val').value=c.frequency_value||'';$('c-amount').value=c.payment_amount||'';$('c-next-due').value=c.next_due_date||'';
-    onCustFreqChange();
+  const upEl = document.getElementById('dash-upcoming');
+  if (!dash.upcoming || !dash.upcoming.length) {
+    upEl.innerHTML = '<div class="empty" style="padding:20px"><div class="empty-icon">&#x2705;</div>No upcoming payments</div>';
+  } else {
+    upEl.innerHTML = '<div style="display:flex;flex-direction:column;gap:8px">' +
+      dash.upcoming.slice(0,6).map(p=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--card2);border-radius:8px">
+          <div><div style="font-weight:500">${esc(p.customer_name)}</div><div class="text-sm">${p.next_due_date}</div></div>
+          <div style="text-align:right"><div style="font-weight:600;color:var(--green)">${fmtPKR(p.amount)}</div>
+          <span class="badge ${statusBadge(p.status)}">${fmtStatus(p.status)}</span></div>
+        </div>`).join('') + '</div>';
   }
+
+  const ovEl = document.getElementById('dash-overdue');
+  if (!dash.overdue || !dash.overdue.length) {
+    ovEl.innerHTML = '<div class="empty" style="padding:20px"><div class="empty-icon">&#x2705;</div>No overdue payments</div>';
+  } else {
+    ovEl.innerHTML = '<div class="table-wrap"><table><thead><tr><th>Customer</th><th>Amount</th><th>Due Date</th><th>Days</th><th>Action</th></tr></thead><tbody>' +
+      dash.overdue.map(p=>`<tr>
+        <td><div style="font-weight:500">${esc(p.customer_name)}</div><div class="text-sm">${esc(p.company||'')}</div></td>
+        <td style="color:var(--red);font-weight:600">${fmtPKR(p.amount)}</td>
+        <td>${p.next_due_date}</td>
+        <td><span class="badge badge-red">${p.days_overdue}d</span></td>
+        <td><button class="btn btn-success btn-xs" onclick="openMarkPaid(${p.id},'${esc(p.customer_name)}',${p.amount})">Mark Paid</button></td>
+      </tr>`).join('') + '</tbody></table></div>';
+  }
+}
+
+function renderBarChart(data) {
+  const ctx = document.getElementById('bar-chart');
+  if (!ctx) return;
+  if (barChart) { barChart.destroy(); barChart = null; }
+  const labels = data.map(d => {
+    const [y,m] = d.month.split('-');
+    return new Date(parseInt(y), parseInt(m)-1).toLocaleString('default',{month:'short',year:'2-digit'});
+  });
+  barChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Income', data: data.map(d=>d.income), backgroundColor:'rgba(34,197,94,.7)', borderRadius:4 },
+        { label: 'Expenses', data: data.map(d=>d.expenses), backgroundColor:'rgba(239,68,68,.6)', borderRadius:4 },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ color:'#8892a4', font:{ size:12 } } } },
+      scales:{
+        x:{ ticks:{ color:'#8892a4' }, grid:{ color:'rgba(42,51,71,.5)' } },
+        y:{ ticks:{ color:'#8892a4', callback: v=>'PKR '+Number(v).toLocaleString() }, grid:{ color:'rgba(42,51,71,.5)' } }
+      }
+    }
+  });
+}
+
+// ── Customers ──────────────────────────────────────────
+async function loadCustomers() {
+  const search = document.getElementById('cust-search')?.value || '';
+  const rows = await api('GET', '/customers' + (search ? '?search='+encodeURIComponent(search) : ''));
+  if (rows) { allCustomers = rows; populateCustomerDropdowns(); }
+  renderCustomers();
+}
+
+function searchCustomers() {
+  clearTimeout(searchCustomers._t);
+  searchCustomers._t = setTimeout(loadCustomers, 300);
+}
+
+function renderCustomers() {
+  const tbody = document.getElementById('cust-tbody');
+  if (!tbody) return;
+  if (!allCustomers.length) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty"><div class="empty-icon">&#x1F465;</div>No customers yet. Click &ldquo;Add Customer&rdquo; to get started.</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = allCustomers.map(c => `<tr>
+    <td><div style="font-weight:500">${esc(c.name)}</div></td>
+    <td>${esc(c.company||'')}</td>
+    <td>${esc(c.phone||'')}</td>
+    <td>${freqLabel(c.payment_frequency, c.frequency_value)}</td>
+    <td>${c.payment_amount>0 ? fmtPKR(c.payment_amount) : '<span class="text-sm">&mdash;</span>'}</td>
+    <td>${c.next_due_date||'<span class="text-sm">&mdash;</span>'}</td>
+    <td><span class="badge ${statusBadge(c.payment_status)}">${fmtStatus(c.payment_status)}</span></td>
+    <td><div class="flex">
+      ${c.payment_amount>0 ? `<button class="btn btn-success btn-xs" onclick="openMarkPaid(${c.id},'${esc(c.name)}',${c.payment_amount})">Paid</button>` : ''}
+      <button class="btn btn-ghost btn-xs" onclick="editCustomer(${c.id})">Edit</button>
+      <button class="btn btn-danger btn-xs" onclick="deleteCustomer(${c.id})">Del</button>
+    </div></td>
+  </tr>`).join('');
+}
+
+function populateCustomerDropdowns() {
+  ['inv-customer','qi-customer'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const val = el.value;
+    el.innerHTML = '<option value="">-- Select Customer --</option>' +
+      allCustomers.map(c=>`<option value="${c.id}">${esc(c.name)}${c.company?' ('+esc(c.company)+')':''}</option>`).join('');
+    if (val) el.value = val;
+  });
+}
+
+function openCustomerModal(data) {
+  document.getElementById('cust-modal-title').textContent = data ? 'Edit Customer' : 'Add Customer';
+  document.getElementById('cust-id').value = data?.id || '';
+  document.getElementById('cust-name').value = data?.name || '';
+  document.getElementById('cust-company').value = data?.company || '';
+  document.getElementById('cust-phone').value = data?.phone || '';
+  document.getElementById('cust-email').value = data?.email || '';
+  document.getElementById('cust-address').value = data?.address || '';
+  document.getElementById('cust-notes').value = data?.notes || '';
+  document.getElementById('cust-freq').value = data?.payment_frequency || 'monthly';
+  document.getElementById('cust-freq-val').value = data?.frequency_value || 1;
+  document.getElementById('cust-amount').value = data?.payment_amount || '';
+  document.getElementById('cust-due').value = data?.next_due_date || '';
+  toggleFreqValue();
   openModal('modal-customer');
 }
 
-async function saveCustomer(){
-  const id=$('cust-id').value;
-  const freq=$('c-freq').value;
-  const body={name:$('c-name').value.trim(),company:$('c-company').value.trim(),phone:$('c-phone').value.trim(),email:$('c-email').value.trim(),address:$('c-address').value.trim(),notes:$('c-notes').value.trim(),payment_frequency:freq,frequency_value:parseInt($('c-freq-val').value)||1,payment_amount:parseFloat($('c-amount').value),
-    whatsapp_consent:$('c-whatsapp').checked||0,next_due_date:$('c-next-due').value||null};
-  if(!body.name){flash('cust-err','Name is required','error');return;}
-  if(!body.payment_amount){flash('cust-err','Payment amount is required','error');return;}
-  if(!body.next_due_date){flash('cust-err','Next due date is required','error');return;}
-  try{if(id)await api('PUT','/customers/'+id,body);else await api('POST','/customers',body);closeModal('modal-customer');loadCustomers();}
-  catch(e){flash('cust-err',e.message,'error');}
+async function editCustomer(id) {
+  const c = await api('GET', '/customers/'+id);
+  if (c) openCustomerModal(c);
 }
 
-async function viewCustomer(id){
-  const c=await api('GET','/customers/'+id);
-  $('cd-name').textContent=c.name;$('cd-company').textContent=c.company||'—';$('cd-phone').textContent=c.phone||'—';$('cd-email').textContent=c.email||'—';$('cd-address').textContent=c.address||'—';
-  $('cd-freq').textContent=c.payment_frequency?fmtFreq(c.payment_frequency,c.frequency_value):'—';
-  $('cd-amount').textContent=c.payment_amount>0?fmtAmt(c.payment_amount):'—';
-  $('cd-next-due').textContent=fmtDate(c.next_due_date);
-  $('cd-status').innerHTML=badge(c.payment_status||'no_setup');
-  $('cd-notes').textContent=c.notes||'';$('cd-notes-wrap').classList.toggle('hidden',!c.notes);
-  document.querySelectorAll('[data-cdtab]').forEach(b=>b.classList.remove('active'));['info','payments'].forEach(t=>$('cdtab-'+t).classList.add('hidden'));document.querySelector('[data-cdtab="info"]').classList.add('active');$('cdtab-info').classList.remove('hidden');
-  $('cd-pay-tbody').innerHTML=c.payments?.length?c.payments.map(p=>`<tr><td>${fmtAmt(p.amount)}</td><td>${fmtDate(p.payment_date)}</td><td>${fmtFreq(p.frequency,p.frequency_value)}</td><td>${fmtDate(p.next_due_date)}</td></tr>`).join(''):`<tr class="empty-row"><td colspan="4">No payment history yet</td></tr>`;
-  $('cd-edit-btn').onclick=()=>{closeModal('modal-cust-detail');openCustomerModal(id);};
-  openModal('modal-cust-detail');
+async function saveCustomer() {
+  const id = document.getElementById('cust-id').value;
+  const d = {
+    name: document.getElementById('cust-name').value.trim(),
+    company: document.getElementById('cust-company').value.trim(),
+    phone: document.getElementById('cust-phone').value.trim(),
+    email: document.getElementById('cust-email').value.trim(),
+    address: document.getElementById('cust-address').value.trim(),
+    notes: document.getElementById('cust-notes').value.trim(),
+    payment_frequency: document.getElementById('cust-freq').value,
+    frequency_value: document.getElementById('cust-freq-val').value || 1,
+    payment_amount: document.getElementById('cust-amount').value || 0,
+    next_due_date: document.getElementById('cust-due').value || null,
+  };
+  if (!d.name) return alert('Name is required');
+  if (id) await api('PUT', '/customers/'+id, d);
+  else await api('POST', '/customers', d);
+  closeModal('modal-customer');
+  await loadCustomers();
 }
 
-// ── Due Payments ──
-async function loadDuePayments(){
-  const list=await api('GET','/due-payments');
-  $('due-tbody').innerHTML=list.length?list.map(c=>`<tr><td><strong>${esc(c.name)}</strong></td><td>${esc(c.company||'—')}</td><td>${esc(c.phone||'—')}</td><td>${fmtAmt(c.payment_amount)}</td><td>${fmtFreq(c.payment_frequency,c.frequency_value)}</td><td>${fmtDate(c.next_due_date)}</td><td>${badge(c.payment_status)}</td><td><button class="btn btn-sm btn-success" onclick="openMarkPaid(${c.id},'${esc(c.name)}',${c.payment_amount})">✓ Mark as Paid</button></td></tr>`).join(''):`<tr class="empty-row"><td colspan="8">No payments due in the next 7 days 🎉</td></tr>`;
+async function deleteCustomer(id) {
+  if (!confirm('Delete this customer and all their data?')) return;
+  await api('DELETE', '/customers/'+id);
+  await loadCustomers();
 }
 
-// ── Overdue Payments ──
-let OVERDUE_INFO={};
-// Human label for one billing cycle's period, derived from its due date + frequency.
-// monthly -> "March 2025"; multi-month -> "Jul – Dec 2024"; custom days -> a date range.
-function cyclePeriodLabel(dueStr,freq,fval){
-  const d=new Date(dueStr+'T00:00:00');
-  if(freq==='custom_days'){
-    const n=parseInt(fval)||1;
-    if(n<=1) return fmtDate(dueStr);
-    const e=new Date(d); e.setDate(e.getDate()+n-1);
-    const eStr=`${e.getFullYear()}-${String(e.getMonth()+1).padStart(2,'0')}-${String(e.getDate()).padStart(2,'0')}`;
-    return fmtDate(dueStr)+' – '+fmtDate(eStr);
-  }
-  const monthsBy={monthly:1,bimonthly:2,quarterly:3,every4months:4,every6months:6,yearly:12,custom_months:(parseInt(fval)||1)};
-  const m=monthsBy[freq]||1;
-  if(m===1) return MONTHS[d.getMonth()]+' '+d.getFullYear();
-  const e=new Date(d.getFullYear(),d.getMonth()+m-1,1);
-  const sM=MONTHS[d.getMonth()].slice(0,3),eM=MONTHS[e.getMonth()].slice(0,3);
-  return d.getFullYear()===e.getFullYear()?`${sM} – ${eM} ${e.getFullYear()}`:`${sM} ${d.getFullYear()} – ${eM} ${e.getFullYear()}`;
-}
-// "Rs 5,000/month", "Rs 5,000 per 6 months", etc.
-function rateLabel(freq,fval,amount){
-  const per={monthly:'/month',yearly:'/year',quarterly:' per quarter',bimonthly:' per 2 months',every4months:' per 4 months',every6months:' per 6 months',custom_days:` per ${parseInt(fval)||1} days`,custom_months:` per ${parseInt(fval)||1} months`};
-  return fmtAmt(amount)+(per[freq]||' per cycle');
-}
-// e.g. "Payment due for March 2025, April 2025 @ rate of Rs 5,000/month. Total: Rs 10,000 (2 cycles)."
-function buildOverdueDescription(c){
-  const dates=(c.due_dates&&c.due_dates.length)?c.due_dates:(c.next_due_date?[c.next_due_date]:[]);
-  if(!dates.length) return '';
-  const periods=dates.map(dt=>cyclePeriodLabel(dt,c.payment_frequency,c.frequency_value));
-  let s=`Payment due for ${periods.join(', ')} @ rate of ${rateLabel(c.payment_frequency,c.frequency_value,c.payment_amount)}.`;
-  if(dates.length>1) s+=` Total: ${fmtAmt((parseFloat(c.payment_amount)||0)*dates.length)} (${dates.length} cycles).`;
-  return s;
-}
-function openInvoiceFromOverdue(id){
-  // The invoice modal loads the customer's pending months, pre-checks them all,
-  // and auto-fills amount + description; the user unticks any month not being invoiced.
-  openInvoiceModal(null,{customer_id:id});
-}
-async function loadOverduePayments(){
-  const list=await api('GET','/overdue-payments');
-  OVERDUE_INFO={}; list.forEach(c=>{OVERDUE_INFO[c.id]=c;});
-  $('overdue-tbody').innerHTML=list.length?list.map(c=>{
-    const cycles = c.cycles_overdue || 1;
-    const total = (c.total_due != null) ? c.total_due : c.payment_amount;
-    const invoiceBtn = (c.invoiceable_count > 0)
-      ? `<button class="btn btn-sm btn-primary" onclick="openInvoiceFromOverdue(${c.id})">🧾 Create Invoice</button>`
-      : `<button class="btn btn-sm" disabled style="opacity:.5;cursor:not-allowed" title="All overdue months are already on an invoice">🧾 Invoiced</button>`;
-    const settleBtn = cycles > 1
-      ? `<button class="btn btn-sm" style="background:#0ea5e9;color:#fff;margin-right:.3rem" onclick="settleAll(${c.id},'${esc(c.name)}',${cycles},${total})">💰 Settle All (${cycles})</button>`
-      : '';
-    const amtCell = cycles > 1
-      ? `<strong>${fmtAmt(total)}</strong><br><small class="text-muted">${cycles} cycles × ${fmtAmt(c.payment_amount)}</small>`
-      : `${fmtAmt(total)}`;
-    const dueCell = cycles > 1
-      ? `${fmtDate(c.next_due_date)}<br><small class="text-muted">oldest unpaid</small>`
-      : `${fmtDate(c.next_due_date)}`;
-    return `<tr><td><strong>${esc(c.name)}</strong></td><td>${esc(c.company||'—')}</td><td>${esc(c.phone||'—')}</td><td>${amtCell}</td><td>${dueCell}</td><td><span class="days-overdue">${c.days_overdue} day${c.days_overdue===1?'':'s'}</span></td><td style="white-space:nowrap"><button class="btn btn-sm btn-success" style="margin-right:.3rem" onclick="openMarkPaid(${c.id},'${esc(c.name)}',${c.payment_amount})">✓ Mark Paid (1)</button>${settleBtn}<button class="btn btn-sm btn-warning" style="margin-right:.3rem" onclick="sendReminder(${c.id},'${esc(c.name)}')">📩 Send Reminder</button>${invoiceBtn}</td></tr>`;
-  }).join(''):`<tr class="empty-row"><td colspan="7">No overdue payments 🎉</td></tr>`;
+function toggleFreqValue() {
+  const f = document.getElementById('cust-freq').value;
+  document.getElementById('freq-val-group').style.display = (f==='custom_days'||f==='custom_months') ? 'block' : 'none';
 }
 
-async function settleAll(id,name,cycles,total){
-  if(!confirm(`Settle ALL ${cycles} overdue cycles for ${name}?\n\nThis records ${cycles} payments totalling ${fmtAmt(total)} and moves the due date forward to the next upcoming cycle.`)) return;
-  try{
-    await api('POST','/customers/'+id+'/mark-paid',{all:true});
-    loadNotifBadge();
-    loadOverduePayments();
-  }catch(e){alert('Failed to settle: '+(e.message||e));}
-}
-
-function sendReminder(id,name){
-  alert(`Reminder for ${name} noted.\n\nEmail/SMS reminder functionality can be enabled once your SMTP settings are configured in Settings → Email & Reminders.`);
-}
-
-// ── Mark as Paid Modal ──
-function openMarkPaid(custId,custName,amount){
-  $('mp-cust-id').value=custId;
-  $('mp-customer-name').textContent='Customer: '+custName;
-  $('mp-amount').value=amount;
-  $('mp-date').value=new Date().toISOString().split('T')[0];
-  $('mp-notes').value='';
-  $('mp-err').classList.add('hidden');
+// ── Mark Paid ──────────────────────────────────────────
+function openMarkPaid(id, name, amount) {
+  document.getElementById('mp-cust-id').value = id;
+  document.getElementById('mp-cust-name').value = name;
+  document.getElementById('mp-amount').value = amount;
+  document.getElementById('mp-date').value = today();
+  document.getElementById('mp-notes').value = '';
   openModal('modal-mark-paid');
 }
 
-async function submitMarkPaid(){
-  const custId=$('mp-cust-id').value;
-  const amount=$('mp-amount').value;
-  const date=$('mp-date').value;
-  if(!amount||!date){flash('mp-err','Amount and date are required','error');return;}
-  try{
-    await api('POST','/customers/'+custId+'/mark-paid',{amount:parseFloat(amount),payment_date:date,notes:$('mp-notes').value});
-    closeModal('modal-mark-paid');
-    loadNotifBadge();
-    // Refresh whichever section is active
-    const active=document.querySelector('.page.active');
-    if(active){
-      const id=active.id.replace('page-','');
-      const loaders={dashboard:loadDashboard,customers:loadCustomers,'due-payments':loadDuePayments,'overdue-payments':loadOverduePayments};
-      loaders[id]?.();
+async function doMarkPaid() {
+  const id = document.getElementById('mp-cust-id').value;
+  await api('POST', '/customers/'+id+'/mark-paid', {
+    amount: document.getElementById('mp-amount').value,
+    payment_date: document.getElementById('mp-date').value,
+    notes: document.getElementById('mp-notes').value,
+  });
+  closeModal('modal-mark-paid');
+  await loadCustomers();
+  if (document.getElementById('page-dashboard').classList.contains('active')) loadDashboard();
+  if (document.getElementById('page-payments').classList.contains('active')) loadPayments();
+}
+
+// ── Payments ───────────────────────────────────────────
+async function loadPayments() {
+  const mSel = document.getElementById('pay-filter-month');
+  if (mSel && mSel.options.length <= 1) {
+    for (let i=11; i>=0; i--) {
+      const d = new Date(); d.setMonth(d.getMonth()-i);
+      const val = d.toISOString().slice(0,7);
+      const label = d.toLocaleString('default',{month:'long',year:'numeric'});
+      mSel.innerHTML += `<option value="${val}">${label}</option>`;
     }
-  }catch(e){flash('mp-err',e.message,'error');}
-}
-
-// ── Payment History ──
-async function loadPayments(){
-  const custSel=$('flt-customer');const prevCust=custSel.value;
-  const customers=await api('GET','/customers');
-  custSel.innerHTML='<option value="">All Customers</option>'+customers.map(c=>`<option value="${c.id}">${esc(c.name)}${c.company?' ('+esc(c.company)+')':''}</option>`).join('');
-  custSel.value=prevCust;
-  let url='/payments?';const f=$('flt-freq').value;if(f)url+=`frequency=${f}&`;
-  const cid=custSel.value;if(cid)url+=`customer_id=${cid}&`;
-  const list=await api('GET',url);
-  $('pay-tbody').innerHTML=list.length?list.map(p=>`<tr><td><strong>${esc(p.customer_name)}</strong><br><small class="text-muted">${esc(p.customer_company||'')}</small></td><td>${esc(p.customer_phone)||'—'}</td><td>${fmtAmt(p.amount)}</td><td>${fmtDate(p.payment_date)}</td><td>${fmtFreq(p.frequency,p.frequency_value)}</td><td>${fmtDate(p.next_due_date)}</td><td style="white-space:nowrap"><button class="btn-icon" title="Delete" style="color:var(--danger)" onclick="confirmDel('payment',${p.id},'this payment record')">${ico('delete')}</button></td></tr>`).join(''):`<tr class="empty-row"><td colspan="7">No payment records yet. Mark payments as paid to build history.</td></tr>`;
-}
-
-function confirmDel(type,id,label){
-  $('confirm-text').textContent=`Delete ${label}? This action cannot be undone.`;
-  $('confirm-ok').onclick=async()=>{await api('DELETE',`/${type==='customer'?'customers':'payments'}/${id}`);closeModal('modal-confirm');if(type==='customer')loadCustomers();else loadPayments();};
-  openModal('modal-confirm');
-}
-
-// ── Calendar ──
-async function renderCalendar(){
-  const pad=n=>String(n).padStart(2,'0');const first=new Date(calYear,calMonth,1),last=new Date(calYear,calMonth+1,0);
-  $('cal-label').textContent=`${MONTHS[calMonth]} ${calYear}`;
-  const start=`${calYear}-${pad(calMonth+1)}-01`,end=`${calYear}-${pad(calMonth+1)}-${pad(last.getDate())}`;
-  const events=await api('GET',`/calendar?start=${start}&end=${end}`);
-  const today=new Date().toISOString().split('T')[0];
-  const grid=$('cal-grid');grid.innerHTML='';
-  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(d=>{const h=document.createElement('div');h.className='cal-day-name';h.textContent=d;grid.appendChild(h);});
-  for(let i=0;i<first.getDay();i++){const d=document.createElement('div');d.className='cal-day other-month';grid.appendChild(d);}
-  for(let d=1;d<=last.getDate();d++){
-    const ds=`${calYear}-${pad(calMonth+1)}-${pad(d)}`;const cell=document.createElement('div');cell.className='cal-day'+(ds===today?' today':'');
-    const num=document.createElement('div');num.className='cal-day-num';num.textContent=d;cell.appendChild(num);
-    events.filter(e=>e.next_due_date===ds).forEach(e=>{const ev=document.createElement('div');ev.className=`cal-event ${e.status}`;ev.title=`${e.customer_name} – ${fmtAmt(e.amount)}`;ev.textContent=e.customer_name;ev.onclick=()=>{$('cal-detail').innerHTML=`<div class="alert alert-info"><strong>${esc(e.customer_name)}</strong> — ${fmtAmt(e.amount)} due ${fmtDate(e.next_due_date)} ${badge(e.status)} (${fmtFreq(e.frequency,1)})</div>`;};cell.appendChild(ev);});
-    grid.appendChild(cell);
   }
+  const month = document.getElementById('pay-filter-month')?.value || '';
+  const freq = document.getElementById('pay-filter-freq')?.value || '';
+  let url = '/payments?';
+  if (month) url += 'month='+month+'&';
+  if (freq) url += 'frequency='+freq;
+  const rows = await api('GET', url);
+  if (!rows) return;
+  const total = rows.reduce((s,r)=>s+parseFloat(r.amount||0),0);
+  const ps = document.getElementById('pay-summary');
+  if (ps) ps.textContent = `${rows.length} records — Total: ${fmtPKR(total)}`;
+  const tbody = document.getElementById('pay-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><div class="empty-icon">&#x1F4B0;</div>No payments found</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(p=>`<tr>
+    <td>${p.payment_date}</td>
+    <td><div style="font-weight:500">${esc(p.customer_name)}</div><div class="text-sm">${esc(p.customer_company||'')}</div></td>
+    <td style="color:var(--green);font-weight:600">${fmtPKR(p.amount)}</td>
+    <td>${freqLabel(p.frequency, p.frequency_value)}</td>
+    <td><span class="badge ${p.source==='invoice'?'badge-purple':'badge-blue'}">${p.source||'scheduled'}</span></td>
+    <td class="text-sm">${esc(p.notes||'')}</td>
+    <td><button class="btn btn-danger btn-xs" onclick="deletePayment(${p.id})">Del</button></td>
+  </tr>`).join('');
 }
-function calPrev(){if(--calMonth<0){calMonth=11;calYear--;}renderCalendar();}
-function calNext(){if(++calMonth>11){calMonth=0;calYear++;}renderCalendar();}
 
-// ── Notifications ──
-async function loadNotifBadge(){const d=await api('GET','/notifications');const b=$('notif-badge');if(d.unread>0){b.textContent=d.unread;b.classList.remove('hidden');}else b.classList.add('hidden');}
-async function loadNotifications(){
-  const d=await api('GET','/notifications');const b=$('notif-badge');if(d.unread>0){b.textContent=d.unread;b.classList.remove('hidden');}else b.classList.add('hidden');
-  $('notif-list').innerHTML=d.notifications.length?d.notifications.map(n=>`<div class="notif-item${n.is_read?'':' unread'}" onclick="readNotif(${n.id},this)"><div class="notif-msg">${badge(n.type)} ${esc(n.message)}</div><div class="notif-time">${timeAgo(n.created_at)}</div></div>`).join(''):`<p class="text-muted text-sm" style="padding:1rem;text-align:center">No notifications</p>`;
+async function deletePayment(id) {
+  if (!confirm('Delete this payment record?')) return;
+  await api('DELETE', '/payments/'+id);
+  loadPayments();
 }
-function readNotif(id,el){api('PUT','/notifications/'+id+'/read');el.classList.remove('unread');loadNotifBadge();}
-function markAllRead(){api('PUT','/notifications/read-all').then(loadNotifications);}
-function toggleNotifPanel(){$('notif-panel').classList.toggle('open');const open=$('notif-panel').classList.contains('open');$('notif-backdrop').style.display=open?'block':'none';if(open)loadNotifications();}
 
-// ── Settings ──
-async function loadSettings(){
-  const s=await api('GET','/settings');$('s-r1').value=s.reminder_days_before||'7';$('s-r2').value=s.reminder_days_before_2||'1';$('s-email-on').checked=s.email_enabled==='true';$('s-smtp-host').value=s.smtp_host||'';$('s-smtp-port').value=s.smtp_port||'587';$('s-smtp-user').value=s.smtp_user||'';$('s-owner-name').value=s.owner_name||'';$('s-owner-email').value=s.owner_email||'';$('s-wa-on').checked=s.wa_api_enabled==='true';$('s-wa-phone-id').value=s.wa_phone_number_id||'';$('s-wa-template').value=s.wa_template_name||'invoice_notification';$('s-wa-lang').value=s.wa_template_lang||'en';onToggleEmail();
+async function loadDuePayments() {
+  const rows = await api('GET', '/payments/due');
+  const tbody = document.getElementById('due-tbody');
+  if (!rows || !rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><div class="empty-icon">&#x2705;</div>No payments due soon</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(c=>`<tr>
+    <td><div style="font-weight:500">${esc(c.name)}</div></td>
+    <td>${esc(c.company||'')}</td>
+    <td>${esc(c.phone||'')}</td>
+    <td style="font-weight:600">${fmtPKR(c.payment_amount)}</td>
+    <td>${c.next_due_date}</td>
+    <td><span class="badge ${statusBadge(c.payment_status)}">${fmtStatus(c.payment_status)}</span></td>
+    <td><button class="btn btn-success btn-xs" onclick="openMarkPaid(${c.id},'${esc(c.name)}',${c.payment_amount})">Mark Paid</button></td>
+  </tr>`).join('');
 }
-function onToggleEmail(){const on=$('s-email-on').checked;$('email-fields').style.opacity=on?'1':'.5';$('email-fields').style.pointerEvents=on?'all':'none';}
-async function saveGeneralSettings(){await api('PUT','/settings',{reminder_days_before:$('s-r1').value,reminder_days_before_2:$('s-r2').value});flash('msg-general','Settings saved!');}
-async function saveEmailSettings(){const body={email_enabled:$('s-email-on').checked?'true':'false',smtp_host:$('s-smtp-host').value,smtp_port:$('s-smtp-port').value,smtp_user:$('s-smtp-user').value,owner_name:$('s-owner-name').value,owner_email:$('s-owner-email').value};if($('s-smtp-pass').value)body.smtp_pass=$('s-smtp-pass').value;await api('PUT','/settings',body);flash('msg-email','Email settings saved!');}
-async function testEmail(){try{await api('POST','/settings/test-email');flash('msg-email','Test email sent! Check your inbox.');}catch(e){flash('msg-email',e.message,'error');}}
-async function saveWhatsAppSettings(){const body={wa_api_enabled:$('s-wa-on').checked?'true':'false',wa_phone_number_id:$('s-wa-phone-id').value.trim(),wa_template_name:$('s-wa-template').value.trim()||'invoice_notification',wa_template_lang:$('s-wa-lang').value.trim()||'en'};if($('s-wa-token').value.trim())body.wa_access_token=$('s-wa-token').value.trim();await api('PUT','/settings',body);$('s-wa-token').value='';flash('msg-wa','WhatsApp settings saved!');}
-async function triggerReminders(){const r=await api('POST','/reminders/trigger');flash('msg-general',`Done! ${r.reminders_created} reminder notification(s) created.`);loadNotifBadge();}
-async function saveProfile(){try{await api('PUT','/auth/profile',{name:$('s-name').value,email:$('s-acc-email').value});ME.name=$('s-name').value;ME.email=$('s-acc-email').value;$('user-name').textContent=ME.name;$('user-email').textContent=ME.email;$('user-avatar').textContent=ME.name[0].toUpperCase();flash('msg-profile','Profile updated!');}catch(e){flash('msg-profile',e.message,'error');}}
-async function changePassword(){const np=$('s-new-pwd').value,cp=$('s-cnf-pwd').value;if(np!==cp){flash('msg-pwd','Passwords do not match','error');return;}try{await api('PUT','/auth/password',{current:$('s-cur-pwd').value,newPassword:np});$('s-cur-pwd').value=$('s-new-pwd').value=$('s-cnf-pwd').value='';flash('msg-pwd','Password changed successfully!');}catch(e){flash('msg-pwd',e.message,'error');}}
 
-// ── Icons ──
-function ico(name){const paths={edit:`<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>`,delete:`<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`,eye:`<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>`};return paths[name]||'';}
+async function loadOverdue() {
+  const rows = await api('GET', '/payments/overdue');
+  const tbody = document.getElementById('overdue-tbody');
+  if (!rows || !rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><div class="empty-icon">&#x2705;</div>No overdue payments</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(c=>`<tr>
+    <td><div style="font-weight:500">${esc(c.customer_name)}</div></td>
+    <td>${esc(c.company||'')}</td>
+    <td>${esc(c.phone||'')}</td>
+    <td style="color:var(--red);font-weight:600">${fmtPKR(c.amount)}</td>
+    <td>${c.next_due_date}</td>
+    <td><span class="badge badge-red">${c.days_overdue} days</span></td>
+    <td><button class="btn btn-success btn-xs" onclick="openMarkPaid(${c.id},'${esc(c.customer_name)}',${c.amount})">Mark Paid</button></td>
+  </tr>`).join('');
+}
 
-window.addEventListener('resize',()=>{const t=$('sidebar-toggle');if(window.innerWidth<=768)t.style.display='flex';else{t.style.display='none';$('sidebar').classList.remove('open');}});
-if(window.innerWidth<=768)$('sidebar-toggle').style.display='flex';
-if(TOKEN)bootApp();
-
-
-// ─── INVOICE MANAGEMENT ───────────────────────────────────────────────────────
-
-window._allInvoices = [];
-let INV_PERIODS=[], INV_CUSTOMERS=[], INV_CUST_FREQ='monthly', INV_CUST_FVAL=1, INV_LAST_DESC='';
-
+// ── Invoices ───────────────────────────────────────────
 async function loadInvoices() {
   const rows = await api('GET', '/invoices');
-  window._allInvoices = rows;
-  renderInvoicesTable(rows);
+  if (rows) allInvoices = rows;
+  renderInvoices();
 }
 
-function filterInvoices() {
-  const q = ($('inv-search').value||'').toLowerCase();
-  const st = $('inv-status-filter').value;
-  const filtered = window._allInvoices.filter(inv => {
-    const matchQ = !q || inv.invoice_id.toLowerCase().includes(q) || (inv.customer_name||'').toLowerCase().includes(q);
-    const matchSt = !st || inv.status === st;
-    return matchQ && matchSt;
-  });
-  renderInvoicesTable(filtered);
+function filterInvoices(status, tab) {
+  invFilter = status;
+  document.querySelectorAll('#page-invoices .tab').forEach(t=>t.classList.remove('active'));
+  if (tab) tab.classList.add('active');
+  renderInvoices();
 }
 
-function renderInvoicesTable(invoices){
-  const tb=$('invoices-tbody');
-  if(!tb)return;
-  if(!invoices||!invoices.length){
-    tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:2rem;color:var(--text-muted)">No invoices yet. Click + Create Invoice to add one.</td></tr>';
+function renderInvoices() {
+  const tbody = document.getElementById('inv-tbody');
+  if (!tbody) return;
+  let rows = allInvoices;
+  if (invFilter !== 'all') rows = rows.filter(i=>i.status===invFilter);
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><div class="empty-icon">&#x1F9FE;</div>No invoices found</div></td></tr>';
     return;
   }
-  const fmt=n=>new Intl.NumberFormat('en-PK',{style:'currency',currency:'PKR',maximumFractionDigits:0}).format(n);
-  tb.innerHTML=invoices.map(inv=>{
-    const statusBadge=invBadge(inv.status);
-    const waBtn=inv.whatsapp_consent
-      ? `<button class="btn btn-sm" style="background:#25d366;color:#fff;padding:.25rem .6rem;border-radius:6px;font-size:.8rem" onclick="whatsappFromTable(${inv.id})">WhatsApp</button>`
-      : '';
-    const markBtn=inv.status!=='Paid'
-      ? `<button class="btn btn-sm btn-success" onclick="updateInvoiceStatus(${inv.id},'${inv.status==='Draft'?'Sent':'Paid'}')">${inv.status==='Draft'?'Mark Sent':'Mark Paid'}</button>`
-      : '';
-    return `<tr>
-      <td>${esc(inv.invoice_id)}</td>
-      <td>${esc(inv.customer_name||(inv.company_name||''))}</td>
-      <td>${fmt(inv.amount)}</td>
-      <td>${inv.invoice_date||''}</td>
-      <td>${inv.due_date||''}</td>
-      <td>${statusBadge}</td>
-      <td style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center">
-        <button class="btn btn-sm btn-ghost" onclick="viewInvoice(${inv.id})">👁 Preview</button>
-        <button class="btn btn-sm btn-ghost" onclick="openInvoiceModal(${inv.id})">Edit</button>
-        ${markBtn}
-        <button class="btn btn-sm btn-danger" onclick="confirmDelInvoice(${inv.id},'${esc(inv.invoice_id)}')">Delete</button>
-        ${waBtn}
-      </td>
-    </tr>`;
-  }).join('');
+  tbody.innerHTML = rows.map(inv=>`<tr>
+    <td style="font-weight:600;color:var(--accent)">${esc(inv.invoice_id)}</td>
+    <td>${esc(inv.customer_name)}</td>
+    <td style="font-weight:600">${fmtPKR(inv.amount)}</td>
+    <td>${inv.invoice_date}</td>
+    <td>${inv.due_date||'&mdash;'}</td>
+    <td><span class="badge ${invStatusBadge(inv.status)}">${inv.status}</span></td>
+    <td><div class="flex">
+      <button class="btn btn-ghost btn-xs" onclick="viewInvoice(${inv.id})">View</button>
+      ${inv.status==='Draft' ? `<button class="btn btn-xs" style="background:var(--accent);color:#fff" onclick="changeInvStatus(${inv.id},'Sent')">Send</button>` : ''}
+      ${inv.status==='Sent' ? `<button class="btn btn-success btn-xs" onclick="changeInvStatus(${inv.id},'Paid')">Mark Paid</button>` : ''}
+      <button class="btn btn-ghost btn-xs" onclick="editInvoice(${inv.id})">Edit</button>
+      <button class="btn btn-danger btn-xs" onclick="deleteInvoice(${inv.id})">Del</button>
+    </div></td>
+  </tr>`).join('');
 }
 
-async function openInvoiceModal(id=null, prefill=null) {
-  $('inv-modal-title').textContent = id ? 'Edit Invoice' : 'Create Invoice';
-  $('inv-id').value = id||'';
-  $('inv-err').classList.add('hidden');
-  $('inv-content').value = '';
-  $('inv-amount').value = '';
-  $('inv-due-date').value = '';
-  $('inv-status').value = 'Draft';
-  $('inv-date').value = new Date().toISOString().split('T')[0];
-  $('inv-periods').innerHTML = '';
-  $('inv-periods-wrap').classList.add('hidden');
-  INV_PERIODS = []; INV_LAST_DESC = '';
-  // Populate customer dropdown
-  INV_CUSTOMERS = await api('GET', '/customers');
-  $('inv-customer').innerHTML = '<option value="">Select customer...</option>' + INV_CUSTOMERS.map(c => `<option value="${c.id}">${c.name}${c.company?' ('+c.company+')':''}</option>`).join('');
-  if (id) {
-    const inv = await api('GET', `/invoices/${id}`);
-    $('inv-customer').value = inv.customer_id;
-    $('inv-amount').value = inv.amount||'';
-    $('inv-date').value = inv.invoice_date||'';
-    $('inv-due-date').value = inv.due_date||'';
-    $('inv-content').value = inv.content||'';
-    $('inv-status').value = inv.status||'Draft';
-    // Editing: month coverage is fixed at creation, so the picker stays hidden.
-  } else if (prefill && prefill.customer_id != null) {
-    $('inv-customer').value = prefill.customer_id;
-    const cust = INV_CUSTOMERS.find(x => x.id == prefill.customer_id);
-    if (cust && cust.next_due_date) $('inv-due-date').value = cust.next_due_date;
-    await loadInvPeriods(prefill.customer_id, true);
-  }
-  openModal('modal-invoice');
-}
-
-// ── Invoice month-picker ──
-async function onInvCustomerChange() {
-  if ($('inv-id').value) return;             // editing: coverage is fixed
-  const cid = $('inv-customer').value;
-  if (!cid) { $('inv-periods-wrap').classList.add('hidden'); INV_PERIODS = []; return; }
-  await loadInvPeriods(cid, true);
-}
-
-async function loadInvPeriods(customerId, preCheckAll) {
-  const cust = INV_CUSTOMERS.find(c => c.id == customerId);
-  INV_CUST_FREQ = cust ? cust.payment_frequency : 'monthly';
-  INV_CUST_FVAL = cust ? (cust.frequency_value||1) : 1;
-  try { INV_PERIODS = await api('GET', `/customers/${customerId}/pending-periods`); }
-  catch { INV_PERIODS = []; }
-  renderInvPeriods(preCheckAll);
-}
-
-function renderInvPeriods(preCheckAll) {
-  const box = $('inv-periods');
-  $('inv-periods-wrap').classList.remove('hidden');
-  if (!INV_PERIODS.length) {
-    box.innerHTML = '<p class="text-muted text-sm" style="margin:.25rem">No pending months for this customer.</p>';
-    return;
-  }
-  box.innerHTML = INV_PERIODS.map(p =>
-    `<label style="display:flex;align-items:center;gap:.5rem;padding:.35rem .5rem;border-radius:6px;cursor:pointer">
-      <input type="checkbox" class="inv-period-cb" value="${p.id}" data-amt="${p.amount}" ${preCheckAll?'checked':''} onchange="onInvPeriodToggle()"/>
-      <span style="flex:1">${esc(cyclePeriodLabel(p.period_date, INV_CUST_FREQ, INV_CUST_FVAL))}</span>
-      <span class="text-muted">${fmtAmt(p.amount)}</span>
-    </label>`
-  ).join('');
-  onInvPeriodToggle();
-}
-
-function invCheckedPeriods() {
-  return Array.from(document.querySelectorAll('.inv-period-cb:checked'));
-}
-
-function onInvPeriodToggle() {
-  const checked = invCheckedPeriods();
-  const sum = checked.reduce((s, cb) => s + (parseFloat(cb.dataset.amt)||0), 0);
-  if (checked.length) $('inv-amount').value = +sum.toFixed(2);
-  const ids = checked.map(cb => String(cb.value));
-  const sel = INV_PERIODS.filter(p => ids.includes(String(p.id)));
-  let desc = '';
-  if (sel.length) {
-    const periods = sel.map(p => cyclePeriodLabel(p.period_date, INV_CUST_FREQ, INV_CUST_FVAL));
-    desc = `Payment due for ${periods.join(', ')} @ rate of ${rateLabel(INV_CUST_FREQ, INV_CUST_FVAL, sel[0].amount||0)}.`;
-    if (sel.length > 1) desc += ` Total: ${fmtAmt(sum)} (${sel.length} cycles).`;
-  }
-  const cur = $('inv-content').value.trim();
-  if (cur === '' || cur === INV_LAST_DESC) $('inv-content').value = desc;   // don't clobber manual edits
-  INV_LAST_DESC = desc;
-}
-
-async function saveInvoice() {
-  const id = $('inv-id').value;
-  const customer_id = $('inv-customer').value;
-  if (!customer_id) { $('inv-err').textContent='Please select a customer'; $('inv-err').classList.remove('hidden'); return; }
-  const body = {
-    customer_id: parseInt(customer_id),
-    content: $('inv-content').value.trim(),
-    amount: parseFloat($('inv-amount').value)||0,
-    invoice_date: $('inv-date').value,
-    due_date: $('inv-due-date').value||null,
-    status: $('inv-status').value
-  };
-  if (!id) body.period_ids = invCheckedPeriods().map(cb => parseInt(cb.value));
-  try {
-    if (id) { await api('PUT', `/invoices/${id}`, body); }
-    else { await api('POST', '/invoices', body); }
-    closeModal('modal-invoice');
-    if (id) loadInvoices(); else navigate('invoices');
-  } catch(e) { $('inv-err').textContent=e.message||'Error saving invoice'; $('inv-err').classList.remove('hidden'); }
-}
-
-async function viewInvoice(id) {
-  const inv = await api('GET', `/invoices/${id}`);
-  window._currentInvoice = inv;
-  const stColors = {Draft:'var(--warning)',Sent:'var(--info)',Paid:'var(--success)'};
-  const now = new Date();
-  const dateStr = now.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
-  const dayStr = now.toLocaleDateString('en-US',{weekday:'long'});
-  $('inv-view-title').textContent = inv.invoice_id;
-  $('inv-view-body').innerHTML = `
-    <div id="invoice-print-area" style="background:#fff;color:#1a1a2e;border:1px solid #e5e7eb;border-radius:10px;padding:2rem;max-width:760px;margin:0 auto;font-family:Arial,Helvetica,sans-serif">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.25rem">
-        <div>
-          <div style="font-size:1.9rem;font-weight:800;color:#4f46e5;letter-spacing:1px">COUNTX</div>
-          <div style="font-size:.82rem;color:#6b7280;margin-top:2px">Customer Payment Invoice</div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:1.5rem;font-weight:800;color:#111827;letter-spacing:2px">INVOICE</div>
-          <div style="font-size:.85rem;color:#6b7280;margin-top:4px">${inv.invoice_id}</div>
-          <div style="margin-top:6px"><span style="background:${stColors[inv.status]||'#999'};color:#fff;padding:3px 12px;border-radius:20px;font-size:.72rem;font-weight:700;letter-spacing:.5px">${(inv.status||'').toUpperCase()}</span></div>
-        </div>
-      </div>
-      <div style="height:3px;background:linear-gradient(90deg,#4f46e5,#a5b4fc);border-radius:3px;margin-bottom:1.5rem"></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-bottom:1.5rem">
-        <div>
-          <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:1px;color:#9ca3af;margin-bottom:.35rem">From</div>
-          <div style="font-weight:700">Saif Ullah</div>
-          <div style="color:#6b7280;font-size:.9rem">COUNTX</div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:1px;color:#9ca3af;margin-bottom:.35rem">Bill To</div>
-          <div style="font-weight:700">${esc(inv.customer_name||'')}</div>
-          ${inv.customer_company?'<div style="color:#6b7280;font-size:.9rem">'+esc(inv.customer_company)+'</div>':''}
-          ${inv.customer_phone?'<div style="color:#6b7280;font-size:.9rem">'+esc(inv.customer_phone)+'</div>':''}
-        </div>
-      </div>
-      <div style="display:flex;justify-content:space-between;background:#f9fafb;border:1px solid #eef0f3;border-radius:8px;padding:.8rem 1rem;margin-bottom:1.5rem;font-size:.88rem">
-        <div><span style="color:#9ca3af">Invoice Date</span><br><strong>${inv.invoice_date||'-'}</strong></div>
-        <div style="text-align:right"><span style="color:#9ca3af">Due Date</span><br><strong>${inv.due_date||'-'}</strong></div>
-      </div>
-      <div style="margin-bottom:1.5rem">
-        <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:1px;color:#9ca3af;margin-bottom:.5rem">Description</div>
-        <div style="white-space:pre-wrap;min-height:60px;padding:.85rem 1rem;border:1px solid #eef0f3;border-radius:8px;background:#fff;font-size:.92rem;line-height:1.5">${esc(inv.content||'')||'<span style="color:#b0b4ba">No description provided.</span>'}</div>
-      </div>
-      <div style="display:flex;justify-content:flex-end;margin-bottom:1.5rem">
-        <div style="background:#4f46e5;color:#fff;border-radius:10px;padding:.9rem 1.5rem;text-align:right;min-width:220px">
-          <div style="font-size:.76rem;opacity:.85;letter-spacing:.5px">TOTAL AMOUNT</div>
-          <div style="font-size:1.6rem;font-weight:800;margin-top:2px">${fmtAmt(inv.amount)}</div>
-        </div>
-      </div>
-      <div style="border:1px solid #e5e7eb;border-radius:8px;padding:1rem 1.25rem;margin-bottom:1rem;background:#fbfbfd">
-        <div style="font-size:.76rem;text-transform:uppercase;letter-spacing:1px;color:#4f46e5;font-weight:700;margin-bottom:.6rem">For Online Payment</div>
-        <table style="width:100%;border-collapse:collapse;font-size:.9rem">
-          <tr><td style="padding:.25rem 0;color:#6b7280;width:120px">Meezan</td><td style="padding:.25rem 0;font-weight:700;letter-spacing:.5px">0204 0100444043</td></tr>
-          <tr><td style="padding:.25rem 0;color:#6b7280">HBL</td><td style="padding:.25rem 0;font-weight:700;letter-spacing:.5px">2297 7000487803</td></tr>
-          <tr><td style="padding:.25rem 0;color:#6b7280">Jazz Cash</td><td style="padding:.25rem 0;font-weight:700;letter-spacing:.5px">0300 4076533</td></tr>
-          <tr><td style="padding:.5rem 0 0;color:#6b7280">Title</td><td style="padding:.5rem 0 0;font-weight:700">Saif Ullah</td></tr>
-        </table>
-      </div>
-      <div style="display:flex;justify-content:flex-end;margin-top:2rem">
-        <div style="text-align:center">
-          <img src="data:image/jpeg;base64,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" style="max-width:180px;max-height:70px;display:block;margin:0 auto .3rem" alt="Signature">
-          <div style="border-bottom:1px solid #333;width:200px;margin-bottom:.3rem">&nbsp;</div>
-          <div style="font-weight:700">Saif Ullah</div>
-          <div style="font-size:.8rem;color:var(--text-muted)">COUNTX</div>
-        </div>
-      </div>
-    </div>
-  `;
-  const actions = $('inv-view-actions');
-  let btns = `<button class="btn btn-ghost" onclick="closeModal('modal-invoice-view')">Close</button>`;
-  if (inv.status!=='Paid') btns += ` <button class="btn btn-ghost" onclick="closeModal('modal-invoice-view');openInvoiceModal(${inv.id})">Edit</button>`;
-  if (inv.status!=='Paid') btns += ` <button class="btn btn-primary" onclick="markInvoice(${inv.id},'Paid')">Mark as Paid</button>`;
-  if (inv.status==='Draft') btns += ` <button class="btn" style="background:var(--info);color:#fff" onclick="markInvoice(${inv.id},'Sent')">Mark as Sent</button>`;
-  if (inv.whatsapp_consent) btns += ` <button class="btn" style="background:#25D366;color:#fff" onclick="sendWhatsApp(${inv.id})">Send via WhatsApp</button>`;
-  btns += ` <button class="btn" style="background:#444;color:#fff" onclick="downloadInvoicePDF()">Download as PDF</button>`;
-  btns += ` <button class="btn" style="background:var(--danger);color:#fff" onclick="deleteInvoice(${inv.id})">Delete</button>`;
-  actions.innerHTML = btns;
-  openModal('modal-invoice-view');
-}
-
-async function saveInvoiceContent(id) {
-  const ta = $('inv-content-textarea');
-  const content = ta ? ta.value : '';
-  const inv = window._currentInvoice || {};
-  try {
-    await api('PUT', `/invoices/${id}`, {
-      customer_id: inv.customer_id,
-      content: content,
-      amount: inv.amount,
-      invoice_date: inv.invoice_date,
-      due_date: inv.due_date,
-      status: inv.status
-    });
-    inv.content = content;
-    alert('Invoice content saved.');
-  } catch (e) {
-    alert('Failed to save: ' + (e.message || e));
-  }
-}
-
-function downloadInvoicePDF() {
-  const area = document.getElementById('invoice-print-area');
-  if (!area) return;
-  const ta = area.querySelector('#inv-content-textarea');
-  const clone = area.cloneNode(true);
-  const cloneTa = clone.querySelector('#inv-content-textarea');
-  if (cloneTa && ta) {
-    const div = document.createElement('div');
-    div.style.cssText = ta.getAttribute('style') + ';white-space:pre-wrap';
-    div.textContent = ta.value;
-    cloneTa.replaceWith(div);
-  }
-  const w = window.open('', '_blank');
-  if (!w) { alert('Please allow popups to download the PDF.'); return; }
-  w.document.write(`<!DOCTYPE html><html><head><title>Invoice</title>
-    <style>body{font-family:Arial,Helvetica,sans-serif;padding:2rem;color:#1a1a2e;background:#fff}
-    @media print{body{padding:0}}</style></head><body>${clone.outerHTML}</body></html>`);
-  w.document.close();
-  setTimeout(() => { w.focus(); w.print(); }, 350);
-}
-
-async function markInvoice(id, status) {
-  await api('PUT', `/invoices/${id}/status`, {status});
-  closeModal('modal-invoice-view');
-  loadInvoices();
+async function changeInvStatus(id, status) {
+  if (status==='Paid' && !confirm('Mark as Paid? This will add it to Payment History.')) return;
+  await api('PUT', '/invoices/'+id+'/status', { status });
+  await loadInvoices();
 }
 
 async function deleteInvoice(id) {
-  if (!confirm('Delete this invoice? This cannot be undone.')) return;
-  await api('DELETE', `/invoices/${id}`);
-  closeModal('modal-invoice-view');
-  loadInvoices();
+  if (!confirm('Delete this invoice?')) return;
+  await api('DELETE', '/invoices/'+id);
+  await loadInvoices();
 }
 
-// Opens the invoice Preview (so the invoice is rendered) then shares it as an image.
-async function whatsappFromTable(id) {
-  await viewInvoice(id);
-  await sendWhatsApp(id);
+function openNewInvoiceModal() {
+  document.getElementById('inv-modal-title').textContent = 'New Invoice';
+  document.getElementById('inv-id').value = '';
+  document.getElementById('inv-customer').value = '';
+  document.getElementById('inv-date').value = today();
+  document.getElementById('inv-due').value = '';
+  document.getElementById('inv-status').value = 'Draft';
+  document.getElementById('inv-notes').value = '';
+  invItems = [{ desc:'', qty:1, price:0 }];
+  renderInvItems();
+  openModal('modal-invoice');
 }
 
-function blobToDataURL(blob){return new Promise((resolve,reject)=>{const r=new FileReader();r.onloadend=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(blob);});}
+async function editInvoice(id) {
+  const inv = await api('GET', '/invoices/'+id);
+  if (!inv) return;
+  document.getElementById('inv-modal-title').textContent = 'Edit Invoice';
+  document.getElementById('inv-id').value = inv.id;
+  document.getElementById('inv-customer').value = inv.customer_id;
+  document.getElementById('inv-date').value = inv.invoice_date;
+  document.getElementById('inv-due').value = inv.due_date||'';
+  document.getElementById('inv-status').value = inv.status;
+  document.getElementById('inv-notes').value = '';
+  try { invItems = JSON.parse(inv.content); if (!Array.isArray(invItems)) throw new Error(); }
+  catch { invItems = [{ desc: inv.content||'Service', qty:1, price:parseFloat(inv.amount)||0 }]; }
+  renderInvItems();
+  openModal('modal-invoice');
+}
 
-async function sendWhatsApp(id) {
-  const inv = await api('GET', `/invoices/${id}`);
+function addInvItem() { invItems.push({desc:'',qty:1,price:0}); renderInvItems(); }
 
-  // If the WhatsApp Cloud API is configured, send the invoice image directly (no manual paste).
-  let settings = {};
-  try { settings = await api('GET', '/settings'); } catch (e) {}
-  if (settings.wa_api_enabled === 'true') {
-    const apiBlob = await renderInvoiceBlob();
-    if (!apiBlob) { alert('Could not generate the invoice image. Open the Preview and try again.'); return; }
-    try {
-      const dataUrl = await blobToDataURL(apiBlob);
-      await api('POST', `/invoices/${id}/send-whatsapp`, { image_base64: dataUrl });
-      alert(`✅ Invoice sent to ${inv.customer_name} via WhatsApp.`);
-      loadInvoices();
-      return;
-    } catch (e) {
-      if (!confirm('WhatsApp API send failed:\n' + (e.message || e) + '\n\nFall back to the manual copy/paste method?')) return;
+function renderInvItems() {
+  document.getElementById('inv-items').innerHTML = invItems.map((it,i)=>`
+    <div class="inv-item-row">
+      <input type="text" value="${esc(it.desc||'')}" placeholder="Item description" oninput="invItems[${i}].desc=this.value"/>
+      <input type="number" value="${it.qty||1}" min="1" style="text-align:right" oninput="invItems[${i}].qty=parseFloat(this.value)||0;calcInvTotal()"/>
+      <input type="number" value="${it.price||0}" min="0" style="text-align:right" oninput="invItems[${i}].price=parseFloat(this.value)||0;calcInvTotal()"/>
+      <button class="btn btn-danger btn-xs" onclick="invItems.splice(${i},1);if(!invItems.length)invItems.push({desc:'',qty:1,price:0});renderInvItems()" style="padding:4px 6px">&#x2715;</button>
+    </div>`).join('');
+  calcInvTotal();
+}
+
+function calcInvTotal() {
+  const t = invItems.reduce((s,it)=>s+(it.qty||1)*(it.price||0),0);
+  document.getElementById('inv-total').textContent = fmtPKR(t);
+  return t;
+}
+
+async function saveInvoice() {
+  const id = document.getElementById('inv-id').value;
+  const total = calcInvTotal();
+  const status = document.getElementById('inv-status').value;
+  const d = {
+    customer_id: document.getElementById('inv-customer').value,
+    invoice_date: document.getElementById('inv-date').value,
+    due_date: document.getElementById('inv-due').value||null,
+    status, amount: total,
+    content: JSON.stringify(invItems),
+  };
+  if (!d.customer_id) return alert('Please select a customer');
+  if (id) {
+    await api('PUT', '/invoices/'+id, d);
+    // If status set to Paid, also fire the status endpoint to log payment
+    const existing = allInvoices.find(i=>i.id==id);
+    if (status==='Paid' && existing?.status!=='Paid') {
+      await api('PUT', '/invoices/'+id+'/status', { status:'Paid' });
     }
-  }
-
-  let phone = (inv.customer_phone||'').replace(/[^0-9]/g,'');
-  if (!phone) { alert('No phone number saved for this customer.'); return; }
-  // Add country code 92 for Pakistan if not present
-  if (phone.startsWith('0')) phone = '92' + phone.substring(1);
-
-  const blob = await renderInvoiceBlob();
-  if (!blob) { alert('Could not generate the invoice image. Open the invoice Preview and try again.'); return; }
-  const fileName = (inv.invoice_id || 'invoice') + '.png';
-  const caption = `Invoice ${inv.invoice_id} — ${fmtAmt(inv.amount)}`;
-
-  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
-  // 1) Mobile: native share sheet with the actual image FILE (attaches the image directly to WhatsApp).
-  try {
-    const file = new File([blob], fileName, { type: 'image/png' });
-    if (isMobile && navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: caption, text: caption });
-      if (inv.status === 'Draft') markInvoice(id, 'Sent');
-      return;
-    }
-  } catch (e) {
-    if (e && e.name === 'AbortError') return; // user closed the share sheet
-    // otherwise fall through to the clipboard method
-  }
-
-  // 2) Desktop fallback: copy the image, open the chat with an EMPTY box, paste with Ctrl+V.
-  let copied = false;
-  try {
-    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-    copied = true;
-  } catch (e) { copied = false; }
-
-  window.open(`https://wa.me/${phone}`, '_blank');
-  if (copied) {
-    alert('✅ Invoice image copied.\n\nIn the WhatsApp chat that just opened, click the message box and press Ctrl + V to paste the invoice image, then press Send.');
   } else {
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = fileName;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    alert('Your browser blocked clipboard access, so the invoice image was downloaded.\n\nIn the WhatsApp chat, click 📎 (attach) → Photos & Videos and select the downloaded image, then send.');
+    const r = await api('POST', '/invoices', d);
+    if (r?.id && status==='Paid') {
+      await api('PUT', '/invoices/'+r.id+'/status', { status:'Paid' });
+    }
   }
-  if (inv.status === 'Draft') markInvoice(id, 'Sent');
+  closeModal('modal-invoice');
+  await loadInvoices();
 }
 
-// Renders the on-screen invoice (#invoice-print-area) to a PNG Blob via an offscreen clone.
-async function renderInvoiceBlob() {
-  const area = document.getElementById('invoice-print-area');
-  if (!area || typeof html2canvas !== 'function') return null;
-  const holder = document.createElement('div');
-  holder.style.cssText = 'position:fixed;left:-10000px;top:0;background:#fff;z-index:-1';
-  const clone = area.cloneNode(true);
-  clone.style.maxWidth = '760px';
-  holder.appendChild(clone);
-  document.body.appendChild(holder);
-  try {
-    const canvas = await html2canvas(clone, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
-    return await new Promise(res => canvas.toBlob(res, 'image/png'));
-  } catch (e) {
-    return null;
-  } finally {
-    holder.remove();
+// ── Invoice View ───────────────────────────────────────
+async function viewInvoice(id) {
+  const inv = await api('GET', '/invoices/'+id);
+  if (!inv) return;
+  let items = [];
+  try { items = JSON.parse(inv.content); if(!Array.isArray(items)) throw 0; }
+  catch { items = [{desc: inv.content||'Service', qty:1, price:parseFloat(inv.amount)||0}]; }
+  const total = items.reduce((s,it)=>s+(it.qty||1)*(it.price||0),0);
+  const sigHtml = sigDataUrl ? `<div class="inv-sig"><img src="${sigDataUrl}" style="max-height:70px;max-width:200px;margin-bottom:4px"/><div style="font-size:11px;color:#666">Authorized Signature</div></div>` : '';
+
+  document.getElementById('inv-view-content').innerHTML = `
+    <div class="invoice-preview" id="printable-invoice">
+      <div class="inv-header">
+        <div>
+          <div class="inv-title">INVOICE</div>
+          <div style="color:#555;font-size:13px;margin-top:4px">${esc(inv.invoice_id)}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:18px;font-weight:700;color:#1a1a2e">COUNTX</div>
+          <div style="color:#555;font-size:12px;margin-top:4px">Date: ${inv.invoice_date}</div>
+          ${inv.due_date ? `<div style="color:#555;font-size:12px">Due: ${inv.due_date}</div>` : ''}
+          <div style="margin-top:6px"><span style="background:${inv.status==='Paid'?'#22c55e':inv.status==='Sent'?'#4f8ef7':'#8892a4'};color:#fff;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600">${inv.status}</span></div>
+        </div>
+      </div>
+      <div style="background:#f0f4ff;border-radius:8px;padding:14px;margin-bottom:20px">
+        <div style="font-weight:700;margin-bottom:4px">Bill To:</div>
+        <div style="font-size:15px;font-weight:600">${esc(inv.customer_name)}</div>
+        ${inv.customer_company ? `<div style="color:#555">${esc(inv.customer_company)}</div>` : ''}
+        ${inv.customer_phone ? `<div style="color:#555">${esc(inv.customer_phone)}</div>` : ''}
+        ${inv.customer_email ? `<div style="color:#555">${esc(inv.customer_email)}</div>` : ''}
+      </div>
+      <table class="inv-table">
+        <thead><tr><th>#</th><th>Description</th><th style="text-align:right">Qty</th><th style="text-align:right">Unit Price</th><th style="text-align:right">Total</th></tr></thead>
+        <tbody>
+          ${items.map((it,i)=>`<tr>
+            <td>${i+1}</td>
+            <td>${esc(it.desc||'Service')}</td>
+            <td style="text-align:right">${it.qty||1}</td>
+            <td style="text-align:right">${fmtPKR(it.price||0)}</td>
+            <td style="text-align:right">${fmtPKR((it.qty||1)*(it.price||0))}</td>
+          </tr>`).join('')}
+          <tr class="inv-total-row">
+            <td colspan="4" style="text-align:right;padding-right:14px">Total Amount</td>
+            <td style="text-align:right;font-size:16px;color:#2563eb">${fmtPKR(total)}</td>
+          </tr>
+        </tbody>
+      </table>
+      ${sigHtml}
+      <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e8eaf0;color:#666;font-size:11px;text-align:center">Thank you for your business</div>
+    </div>`;
+
+  document.getElementById('inv-view-actions').innerHTML = `
+    <button class="btn btn-ghost" onclick="closeModal('modal-inv-view')">Close</button>
+    ${inv.status==='Draft' ? `<button class="btn btn-primary" onclick="changeInvStatus(${inv.id},'Sent').then(()=>closeModal('modal-inv-view'))">Mark Sent</button>` : ''}
+    ${inv.status==='Sent' ? `<button class="btn btn-success" onclick="changeInvStatus(${inv.id},'Paid').then(()=>closeModal('modal-inv-view'))">Mark Paid</button>` : ''}
+    <button class="btn btn-ghost" onclick="printInvoice()">&#x1F5A8; Print</button>`;
+
+  openModal('modal-inv-view');
+}
+
+function printInvoice() {
+  const content = document.getElementById('printable-invoice')?.innerHTML;
+  if (!content) return;
+  const w = window.open('','_blank');
+  w.document.write(`<!DOCTYPE html><html><head><title>Invoice</title>
+    <style>body{font-family:Arial,sans-serif;padding:32px;color:#111}
+    table{width:100%;border-collapse:collapse}th,td{padding:10px;text-align:left;border-bottom:1px solid #e8eaf0}
+    .inv-title{font-size:26px;font-weight:700;color:#1a1a2e}.inv-table th{background:#f0f4ff;font-size:12px}
+    .inv-total-row{font-weight:700;background:#f8f9fb}.inv-header{display:flex;justify-content:space-between;margin-bottom:28px}
+    .inv-sig{display:flex;flex-direction:column;align-items:flex-end;margin-top:36px}
+    @media print{button{display:none}}</style></head>
+    <body>${content}</body></html>`);
+  w.document.close(); w.focus();
+  setTimeout(()=>{ w.print(); w.close(); }, 500);
+}
+
+// ── Quick Invoice ──────────────────────────────────────
+function initQI() {
+  document.getElementById('qi-date').value = today();
+  if (qiItems.length === 0) qiItems = [{desc:'',qty:1,price:0}];
+  renderQiItems();
+  populateCustomerDropdowns();
+}
+
+function addQiItem() { qiItems.push({desc:'',qty:1,price:0}); renderQiItems(); }
+
+function renderQiItems() {
+  document.getElementById('qi-items').innerHTML = qiItems.map((it,i)=>`
+    <div class="inv-item-row">
+      <input type="text" value="${esc(it.desc||'')}" placeholder="Item description" oninput="qiItems[${i}].desc=this.value"/>
+      <input type="number" value="${it.qty||1}" min="1" style="text-align:right" oninput="qiItems[${i}].qty=parseFloat(this.value)||0;calcQiTotal()"/>
+      <input type="number" value="${it.price||0}" min="0" style="text-align:right" oninput="qiItems[${i}].price=parseFloat(this.value)||0;calcQiTotal()"/>
+      <button class="btn btn-danger btn-xs" onclick="qiItems.splice(${i},1);if(!qiItems.length)qiItems.push({desc:'',qty:1,price:0});renderQiItems()" style="padding:4px 6px">&#x2715;</button>
+    </div>`).join('');
+  calcQiTotal();
+}
+
+function calcQiTotal() {
+  const t = qiItems.reduce((s,it)=>s+(it.qty||1)*(it.price||0),0);
+  document.getElementById('qi-total').textContent = fmtPKR(t);
+  return t;
+}
+
+async function saveQiInvoice(status) {
+  const custId = document.getElementById('qi-customer').value;
+  if (!custId) return alert('Please select a customer');
+  const total = calcQiTotal();
+  if (total <= 0) return alert('Please add at least one item with a price');
+  const desc = document.getElementById('qi-desc').value.trim();
+  const items = qiItems.filter(it=>it.desc||it.price>0);
+  if (!items.length) return alert('Please add at least one item');
+  const d = {
+    customer_id: custId,
+    invoice_date: document.getElementById('qi-date').value,
+    due_date: document.getElementById('qi-due').value||null,
+    amount: total,
+    content: JSON.stringify(items),
+    status,
+    notes: document.getElementById('qi-notes').value,
+  };
+  const r = await api('POST', '/invoices', d);
+  if (r && r.success) {
+    alert('Invoice ' + r.invoice_id + ' created (' + status + ')!');
+    qiItems = [{desc:'',qty:1,price:0}];
+    document.getElementById('qi-customer').value = '';
+    document.getElementById('qi-desc').value = '';
+    document.getElementById('qi-notes').value = '';
+    renderQiItems();
+    await loadInvoices();
   }
 }
 
-async function updateInvoiceStatus(id,status){
-  await api('PUT','/invoices/'+id+'/status',{status});loadInvoices();
+// ── Expenses ───────────────────────────────────────────
+async function loadExpenses() {
+  const rows = await api('GET', '/expenses');
+  if (rows) allExpenses = rows;
+  renderExpenses();
 }
-function confirmDelInvoice(id,label){
-  $('confirm-text').textContent='Delete invoice '+label+'? This cannot be undone.';
-  $('confirm-ok').onclick=async()=>{await api('DELETE','/invoices/'+id);closeModal('modal-confirm');loadInvoices();};
-  openModal('modal-confirm');
+
+function renderExpenses() {
+  const tbody = document.getElementById('exp-tbody');
+  if (!tbody) return;
+  const monthly = allExpenses.filter(e=>e.frequency==='monthly').reduce((s,e)=>s+parseFloat(e.amount||0),0);
+  const yearly = allExpenses.filter(e=>e.frequency==='yearly').reduce((s,e)=>s+parseFloat(e.amount||0),0);
+  const totalAll = allExpenses.reduce((s,e)=>s+parseFloat(e.amount||0),0);
+  document.getElementById('exp-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Expenses Tracked</div><div class="stat-value">${allExpenses.length}</div></div>
+    <div class="stat-card red"><div class="stat-label">Monthly Outflow</div><div class="stat-value" style="font-size:17px">${fmtPKR(monthly)}</div></div>
+    <div class="stat-card yellow"><div class="stat-label">Yearly Outflow</div><div class="stat-value" style="font-size:17px">${fmtPKR(yearly)}</div></div>
+  `;
+  if (!allExpenses.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><div class="empty-icon">&#x1F4C9;</div>No expenses yet. Add your recurring expenses to track outflows.</div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = allExpenses.map(e=>`<tr>
+    <td><div style="font-weight:500">${esc(e.name)}</div>${e.notes?`<div class="text-sm">${esc(e.notes)}</div>`:''}</td>
+    <td><span class="badge badge-gray">${esc(e.category||'General')}</span></td>
+    <td style="color:var(--red);font-weight:600">${fmtPKR(e.amount)}</td>
+    <td>${freqLabel(e.frequency, e.frequency_value)}</td>
+    <td>${e.next_due_date||'&mdash;'}</td>
+    <td><span class="badge ${statusBadge(e.expense_status)}">${fmtStatus(e.expense_status)}</span></td>
+    <td><div class="flex">
+      <button class="btn btn-danger btn-xs" onclick="openExpPaid(${e.id},'${esc(e.name)}',${e.amount})">Pay</button>
+      <button class="btn btn-ghost btn-xs" onclick="editExpense(${e.id})">Edit</button>
+      <button class="btn btn-danger btn-xs" onclick="deleteExpense(${e.id})">Del</button>
+    </div></td>
+  </tr>`).join('');
 }
-const INV_BADGES={Draft:'badge-reminder',Sent:'badge-due_soon',Paid:'badge-paid'};
-function invBadge(s){return '<span class="badge '+(INV_BADGES[s]||'badge-info')+'">'+esc(s)+'</span>';}
+
+function openExpenseModal(data) {
+  document.getElementById('exp-modal-title').textContent = data ? 'Edit Expense' : 'Add Expense';
+  document.getElementById('exp-id').value = data?.id||'';
+  document.getElementById('exp-name').value = data?.name||'';
+  document.getElementById('exp-cat').value = data?.category||'General';
+  document.getElementById('exp-amount').value = data?.amount||'';
+  document.getElementById('exp-freq').value = data?.frequency||'monthly';
+  document.getElementById('exp-freq-val').value = data?.frequency_value||1;
+  document.getElementById('exp-due').value = data?.next_due_date||'';
+  document.getElementById('exp-notes').value = data?.notes||'';
+  toggleExpFreqVal();
+  openModal('modal-expense');
+}
+
+async function editExpense(id) {
+  const e = await api('GET', '/expenses/'+id);
+  if (e) openExpenseModal(e);
+}
+
+async function saveExpense() {
+  const id = document.getElementById('exp-id').value;
+  const d = {
+    name: document.getElementById('exp-name').value.trim(),
+    category: document.getElementById('exp-cat').value,
+    amount: document.getElementById('exp-amount').value,
+    frequency: document.getElementById('exp-freq').value,
+    frequency_value: document.getElementById('exp-freq-val').value||1,
+    next_due_date: document.getElementById('exp-due').value||null,
+    notes: document.getElementById('exp-notes').value.trim(),
+  };
+  if (!d.name) return alert('Expense name is required');
+  if (!d.amount || d.amount <= 0) return alert('Amount is required');
+  if (id) await api('PUT', '/expenses/'+id, d);
+  else await api('POST', '/expenses', d);
+  closeModal('modal-expense');
+  await loadExpenses();
+}
+
+async function deleteExpense(id) {
+  if (!confirm('Delete this expense?')) return;
+  await api('DELETE', '/expenses/'+id);
+  await loadExpenses();
+}
+
+function toggleExpFreqVal() {
+  const f = document.getElementById('exp-freq').value;
+  document.getElementById('exp-freq-val-group').style.display = (f==='custom_days'||f==='custom_months') ? 'block':'none';
+}
+
+function openExpPaid(id, name, amount) {
+  document.getElementById('ep-id').value = id;
+  document.getElementById('ep-name').value = name;
+  document.getElementById('ep-amount').value = amount;
+  document.getElementById('ep-date').value = today();
+  document.getElementById('ep-notes').value = '';
+  openModal('modal-exp-paid');
+}
+
+async function doMarkExpPaid() {
+  const id = document.getElementById('ep-id').value;
+  await api('POST', '/expenses/'+id+'/mark-paid', {
+    amount: document.getElementById('ep-amount').value,
+    paid_date: document.getElementById('ep-date').value,
+    notes: document.getElementById('ep-notes').value,
+  });
+  closeModal('modal-exp-paid');
+  await loadExpenses();
+}
+
+// ── Calendar ───────────────────────────────────────────
+function initCalendar() {
+  if (!calYear) { const now=new Date(); calYear=now.getFullYear(); calMonth=now.getMonth(); }
+  renderCalendar();
+}
+function calPrev() { calMonth--; if (calMonth<0) { calMonth=11; calYear--; } renderCalendar(); }
+function calNext() { calMonth++; if (calMonth>11) { calMonth=0; calYear++; } renderCalendar(); }
+
+async function renderCalendar() {
+  document.getElementById('cal-title').textContent = new Date(calYear, calMonth).toLocaleString('default',{month:'long',year:'numeric'});
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  const startDay = new Date(calYear, calMonth, 1).getDay();
+  const start = `${calYear}-${String(calMonth+1).padStart(2,'0')}-01`;
+  const end = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(daysInMonth).padStart(2,'0')}`;
+  const events = await api('GET', `/payments/calendar?start=${start}&end=${end}`) || [];
+  const evByDay = {};
+  events.forEach(e => {
+    const day = parseInt(e.next_due_date.split('-')[2]);
+    if (!evByDay[day]) evByDay[day] = [];
+    evByDay[day].push(e);
+  });
+  const todayDay = (new Date().getFullYear()===calYear && new Date().getMonth()===calMonth) ? new Date().getDate() : -1;
+  let html = '';
+  for (let i=0; i<startDay; i++) html += '<div></div>';
+  for (let d=1; d<=daysInMonth; d++) {
+    const evs = evByDay[d]||[];
+    const isToday = d===todayDay;
+    html += `<div style="min-height:80px;padding:6px;background:${isToday?'rgba(79,142,247,.12)':'var(--card2)'};border-radius:6px;border:1px solid ${isToday?'var(--accent)':'var(--border)'}">
+      <div style="font-size:13px;font-weight:${isToday?'700':'400'};color:${isToday?'var(--accent)':'var(--text)'};margin-bottom:4px">${d}</div>
+      ${evs.map(e=>`<div style="font-size:10px;padding:2px 5px;border-radius:4px;margin-bottom:2px;background:${e.status==='overdue'?'rgba(239,68,68,.2)':e.status==='due_today'?'rgba(245,158,11,.2)':'rgba(34,197,94,.1)'};overflow:hidden;white-space:nowrap;text-overflow:ellipsis">
+        ${esc(e.customer_name.split(' ')[0])} &bull; ${fmtPKR(e.amount)}
+      </div>`).join('')}
+    </div>`;
+  }
+  document.getElementById('cal-days').innerHTML = html;
+}
+
+// ── Notifications ──────────────────────────────────────
+async function loadNotifCount() {
+  const r = await api('GET', '/notifications');
+  if (!r) return;
+  document.getElementById('notif-count').style.display = r.unread_count>0 ? 'inline-block':'none';
+}
+
+async function showNotifs() {
+  const r = await api('GET', '/notifications');
+  if (!r) return;
+  const list = document.getElementById('notif-list');
+  if (!r.notifications.length) {
+    list.innerHTML = '<div class="empty" style="padding:20px">No notifications</div>';
+  } else {
+    list.innerHTML = r.notifications.map(n=>`
+      <div style="padding:12px;background:${n.is_read?'var(--card2)':'rgba(79,142,247,.08)'};border-radius:8px;border:1px solid var(--border)">
+        <div style="font-size:13px">${esc(n.message)}</div>
+        <div class="text-sm" style="margin-top:4px">${(n.created_at||'').split('T')[0]}</div>
+      </div>`).join('');
+  }
+  openModal('modal-notifs');
+  await api('PUT', '/notifications/read-all');
+  document.getElementById('notif-count').style.display = 'none';
+}
+
+async function markAllRead() {
+  await api('PUT', '/notifications/read-all');
+  document.getElementById('notif-count').style.display = 'none';
+  closeModal('modal-notifs');
+}
+
+// ── Settings ───────────────────────────────────────────
+async function loadSettings() {
+  const s = await api('GET', '/settings');
+  if (!s) return;
+  document.getElementById('s-biz').value = s.business_name||'';
+  document.getElementById('s-owner').value = s.owner_name||'';
+  document.getElementById('s-email').value = s.owner_email||'';
+  document.getElementById('s-rem1').value = s.reminder_days_before||7;
+  document.getElementById('s-rem2').value = s.reminder_days_before_2||1;
+}
+
+async function saveSettings() {
+  await api('PUT', '/settings', {
+    business_name: document.getElementById('s-biz').value,
+    owner_name: document.getElementById('s-owner').value,
+    owner_email: document.getElementById('s-email').value,
+    reminder_days_before: document.getElementById('s-rem1').value,
+    reminder_days_before_2: document.getElementById('s-rem2').value,
+  });
+  alert('Settings saved!');
+}
+
+async function changePassword() {
+  const cur = document.getElementById('s-curpass').value;
+  const nw = document.getElementById('s-newpass').value;
+  const cf = document.getElementById('s-confpass').value;
+  if (!cur||!nw) return alert('Fill in all password fields');
+  if (nw!==cf) return alert('New passwords do not match');
+  const r = await api('PUT', '/profile', { name: currentUser?.name||'Admin', email: currentUser?.email||'', currentPassword:cur, newPassword:nw });
+  if (r?.error) alert(r.error);
+  else { alert('Password changed!'); ['s-curpass','s-newpass','s-confpass'].forEach(id=>document.getElementById(id).value=''); }
+}
+
+// ── Modal helpers ──────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target===el) el.classList.remove('open'); });
+});
+
+// ── Utilities ──────────────────────────────────────────
+function today() { return new Date().toISOString().split('T')[0]; }
+function fmtPKR(n) { return 'PKR '+(parseFloat(n)||0).toLocaleString('en-PK',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function freqLabel(f,v) {
+  const m={monthly:'Monthly',bimonthly:'2 Months',quarterly:'3 Months',every4months:'4 Months',every6months:'6 Months',yearly:'Yearly',custom_days:`${v} Days`,custom_months:`${v} Months`,one_time:'One Time'};
+  return m[f]||f||'&mdash;';
+}
+function statusBadge(s) {
+  return {due_today:'badge-yellow',due_soon:'badge-blue',overdue:'badge-red',on_track:'badge-green',no_setup:'badge-gray',no_due:'badge-gray'}[s]||'badge-gray';
+}
+function fmtStatus(s) {
+  return {due_today:'Due Today',due_soon:'Due Soon',overdue:'Overdue',on_track:'On Track',no_setup:'No Setup',no_due:'No Due'}[s]||s||'&mdash;';
+}
+function invStatusBadge(s) {
+  return {Draft:'badge-gray',Sent:'badge-blue',Paid:'badge-green'}[s]||'badge-gray';
+}
+
+// ── Init ───────────────────────────────────────────────
+(async function init() {
+  if (token) {
+    const r = await fetch('/api/profile', { headers:{ Authorization:'Bearer '+token } });
+    if (r.ok) { currentUser = await r.json(); await showApp(); }
+    else logout();
+  }
+})();
 </script>
 </body>
 </html>
