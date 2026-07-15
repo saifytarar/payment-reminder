@@ -450,7 +450,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <h3 id="inv-modal-title">New Invoice</h3>
   <input type="hidden" id="inv-id"/>
   <div class="form-row">
-    <div class="form-group"><label>Customer *</label><select id="inv-customer"></select></div>
+    <div class="form-group"><label>Customer *</label><select id="inv-customer" onchange="onInvCustomerChange()"></select></div>
     <div class="form-group"><label>Invoice Date *</label><input type="date" id="inv-date"/></div>
   </div>
   <div class="form-row">
@@ -458,6 +458,10 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div class="form-group"><label>Status</label>
       <select id="inv-status"><option>Draft</option><option>Sent</option><option>Paid</option></select>
     </div>
+  </div>
+  <div class="form-group hidden" id="inv-periods-wrap">
+    <label>Overdue months to bill <span style="color:var(--muted);font-weight:400">&mdash; tick the months this invoice covers</span></label>
+    <div id="inv-periods" style="max-height:160px;overflow-y:auto;border:1px solid var(--border,#cbd5e1);border-radius:8px;padding:6px"></div>
   </div>
   <hr class="divider"/>
   <div class="inv-items-header">
@@ -928,15 +932,107 @@ async function loadOverdue() {
     tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><div class="empty-icon">&#x2705;</div>No overdue payments</div></td></tr>';
     return;
   }
-  tbody.innerHTML = rows.map(c=>`<tr>
-    <td><div style="font-weight:500">${esc(c.customer_name)}</div></td>
-    <td>${esc(c.company||'')}</td>
-    <td>${esc(c.phone||'')}</td>
-    <td style="color:var(--red);font-weight:600">${fmtPKR(c.amount)}</td>
-    <td>${c.next_due_date}</td>
-    <td><span class="badge badge-red">${c.days_overdue} days</span></td>
-    <td><button class="btn btn-success btn-xs" onclick="openMarkPaid(${c.id},'${esc(c.customer_name)}',${c.amount})">Mark Paid</button></td>
-  </tr>`).join('');
+  tbody.innerHTML = rows.map(c=>{
+    const cycles = c.cycles_overdue || 1;
+    const total = (c.total_due != null) ? c.total_due : c.amount;
+    const oldest = (c.due_dates && c.due_dates[0]) || String(c.next_due_date||'').split('T')[0];
+    const amtCell = cycles > 1
+      ? `<div style="color:var(--red);font-weight:600">${fmtPKR(total)}</div><div style="font-size:11px;color:var(--muted)">${cycles} cycles &times; ${fmtPKR(c.amount)}</div>`
+      : `<span style="color:var(--red);font-weight:600">${fmtPKR(total)}</span>`;
+    const settleBtn = cycles > 1
+      ? `<button class="btn btn-xs" style="background:#0ea5e9;color:#fff" onclick="settleAllOverdue(${c.id},'${esc(c.customer_name)}',${cycles},${total})">Settle All (${cycles})</button>` : '';
+    const invBtn = (c.invoiceable_count > 0)
+      ? `<button class="btn btn-xs" style="background:var(--accent);color:#fff" onclick="openInvoiceForOverdue(${c.id})">Create Invoice</button>`
+      : `<button class="btn btn-xs" disabled style="opacity:.5;cursor:not-allowed" title="All overdue months are already on an invoice">Invoiced</button>`;
+    return `<tr>
+      <td><div style="font-weight:500">${esc(c.customer_name)}</div></td>
+      <td>${esc(c.company||'')}</td>
+      <td>${esc(c.phone||'')}</td>
+      <td>${amtCell}</td>
+      <td>${oldest}</td>
+      <td><span class="badge badge-red">${c.days_overdue} days</span></td>
+      <td><div class="flex">
+        <button class="btn btn-success btn-xs" onclick="openMarkPaid(${c.id},'${esc(c.customer_name)}',${c.amount})">Mark Paid</button>
+        ${settleBtn}
+        ${invBtn}
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+let INV_PERIODS = [];
+
+// Open the invoice modal prefilled for an overdue customer, with all overdue months pre-ticked.
+async function openInvoiceForOverdue(custId) {
+  if (!allCustomers || !allCustomers.length) {
+    try { allCustomers = await api('GET', '/customers') || []; } catch (e) {}
+    populateCustomerDropdowns();
+  }
+  openNewInvoiceModal();
+  document.getElementById('inv-customer').value = custId;
+  await loadInvPeriods(custId, true);
+}
+
+async function settleAllOverdue(id, name, cycles, total) {
+  if (!confirm(`Settle ALL ${cycles} overdue month(s) for ${name} (${fmtPKR(total)})?\n\nThis records ${cycles} payment(s) and moves the due date forward.`)) return;
+  try {
+    await api('POST', '/customers/' + id + '/mark-paid', { all: true });
+    await loadOverdue();
+    if (document.getElementById('page-dashboard').classList.contains('active')) loadDashboard();
+  } catch (e) { alert('Failed: ' + (e.message || e)); }
+}
+
+// ── Invoice month-picker ──
+function invPeriodLabel(dateStr) {
+  const d = new Date(String(dateStr).split('T')[0] + 'T12:00:00Z');
+  return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+async function onInvCustomerChange() {
+  if (document.getElementById('inv-id').value) return;   // editing: coverage is fixed
+  const cid = document.getElementById('inv-customer').value;
+  if (!cid) { INV_PERIODS = []; const w = document.getElementById('inv-periods-wrap'); if (w) w.classList.add('hidden'); return; }
+  await loadInvPeriods(cid, false);
+}
+async function loadInvPeriods(customerId, preCheckAll) {
+  INV_PERIODS = [];
+  try { INV_PERIODS = await api('GET', '/customers/' + customerId + '/pending-periods') || []; } catch (e) {}
+  if (preCheckAll) {
+    INV_PERIODS.forEach(p => {
+      if (!invItems.some(it => it.period_id === p.id))
+        invItems.push({ desc: 'Payment for ' + invPeriodLabel(p.period_date), qty: 1, price: parseFloat(p.amount) || 0, period_id: p.id });
+    });
+    invItems = invItems.filter(it => it.period_id || it.desc || it.price);
+    if (!invItems.length) invItems = [{ desc: '', qty: 1, price: 0 }];
+    renderInvItems();
+  }
+  renderInvPeriods();
+}
+function renderInvPeriods() {
+  const wrap = document.getElementById('inv-periods-wrap');
+  const box = document.getElementById('inv-periods');
+  if (!wrap || !box) return;
+  if (!INV_PERIODS.length) { wrap.classList.add('hidden'); box.innerHTML = ''; return; }
+  wrap.classList.remove('hidden');
+  box.innerHTML = INV_PERIODS.map(p => {
+    const checked = invItems.some(it => it.period_id === p.id);
+    return `<label style="display:flex;align-items:center;gap:8px;padding:4px 6px;cursor:pointer">
+      <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleInvPeriod(${p.id}, this.checked)"/>
+      <span style="flex:1">${invPeriodLabel(p.period_date)}</span>
+      <span style="color:var(--muted)">${fmtPKR(p.amount)}</span>
+    </label>`;
+  }).join('');
+}
+function toggleInvPeriod(pid, checked) {
+  const p = INV_PERIODS.find(x => x.id === pid);
+  if (!p) return;
+  if (checked) {
+    if (!invItems.some(it => it.period_id === pid))
+      invItems.push({ desc: 'Payment for ' + invPeriodLabel(p.period_date), qty: 1, price: parseFloat(p.amount) || 0, period_id: pid });
+  } else {
+    invItems = invItems.filter(it => it.period_id !== pid);
+  }
+  if (!invItems.length) invItems = [{ desc: '', qty: 1, price: 0 }];
+  renderInvItems();
 }
 
 // ── Invoices ───────────────────────────────────────────
@@ -1000,6 +1096,8 @@ function openNewInvoiceModal() {
   document.getElementById('inv-status').value = 'Draft';
   document.getElementById('inv-notes').value = '';
   invItems = [{ desc:'', qty:1, price:0 }];
+  INV_PERIODS = [];
+  const w = document.getElementById('inv-periods-wrap'); if (w) w.classList.add('hidden');
   renderInvItems();
   openModal('modal-invoice');
 }
@@ -1016,6 +1114,8 @@ async function editInvoice(id) {
   document.getElementById('inv-notes').value = '';
   try { invItems = JSON.parse(inv.content); if (!Array.isArray(invItems)) throw new Error(); }
   catch { invItems = [{ desc: inv.content||'Service', qty:1, price:parseFloat(inv.amount)||0 }]; }
+  INV_PERIODS = [];
+  const w = document.getElementById('inv-periods-wrap'); if (w) w.classList.add('hidden');
   renderInvItems();
   openModal('modal-invoice');
 }
@@ -1049,6 +1149,7 @@ async function saveInvoice() {
     due_date: document.getElementById('inv-due').value||null,
     status, amount: total,
     content: JSON.stringify(invItems),
+    period_ids: invItems.filter(it => it.period_id).map(it => it.period_id),
   };
   if (!d.customer_id) return alert('Please select a customer');
   if (id) {
