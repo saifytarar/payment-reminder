@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'changeme_secret';
 
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 /* ── Auth middleware ── */
 function auth(req, res, next) {
@@ -479,6 +479,13 @@ async function sendReminders() {
     console.error('Reminder error:', e.message);
   }
 }
+
+/* ── SPA fallback: serve the git-tracked index.html for non-API GET routes.
+   (Version-safe middleware form; keeps the served frontend in sync with `git pull`.) */
+app.use((req, res) => {
+  if (req.method !== 'GET' || req.path.startsWith('/api')) return res.status(404).json({ error: 'Not found' });
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 /* ── Start ── */
 db.initDb().then(() => {
