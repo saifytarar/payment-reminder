@@ -1013,12 +1013,12 @@ function renderInvPeriods() {
   if (!wrap || !box) return;
   if (!INV_PERIODS.length) { wrap.classList.add('hidden'); box.innerHTML = ''; return; }
   wrap.classList.remove('hidden');
-  box.innerHTML = INV_PERIODS.map(p => {
+  box.innerHTML = INV_PERIODS.map((p, i) => {
     const checked = invItems.some(it => it.period_id === p.id);
-    return `<label style="display:flex;align-items:center;gap:8px;padding:4px 6px;cursor:pointer">
-      <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleInvPeriod(${p.id}, this.checked)"/>
-      <span style="flex:1">${invPeriodLabel(p.period_date)}</span>
-      <span style="color:var(--muted)">${fmtPKR(p.amount)}</span>
+    return `<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;cursor:pointer;border-top:${i ? '1px solid var(--border)' : 'none'}">
+      <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleInvPeriod(${p.id}, this.checked)" style="width:16px;height:16px;flex:0 0 auto;margin:0;padding:0;accent-color:var(--accent)"/>
+      <span style="flex:1;min-width:0">${invPeriodLabel(p.period_date)}</span>
+      <span style="white-space:nowrap;color:var(--muted)">${fmtPKR(p.amount)}</span>
     </label>`;
   }).join('');
 }
