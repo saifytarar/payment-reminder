@@ -10,6 +10,7 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   timezone: '+00:00',
+  dateStrings: true,   // return DATE/DATETIME as strings (e.g. '2026-06-10'), not ISO timestamps
 });
 
 function calcNextDue(fromDate, frequency, frequencyValue = 1) {
