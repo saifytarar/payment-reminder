@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>COUNTX — Payment Manager</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -367,6 +368,25 @@ tr:hover td{background:rgba(255,255,255,.02)}
             <div class="form-group"><label>Days Before (2nd reminder)</label><input id="s-rem2" type="number" min="1" max="30"/></div>
           </div>
           <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+        </div>
+        <div class="card">
+          <div class="card-title">WhatsApp (Cloud API)</div>
+          <div id="s-wa-msg" style="font-size:12.5px;margin-bottom:10px"></div>
+          <div class="form-group" style="display:flex;align-items:center;gap:10px">
+            <input type="checkbox" id="s-wa-on" style="width:16px;height:16px;flex:0 0 auto;margin:0;accent-color:var(--accent)"/>
+            <label for="s-wa-on" style="margin:0">Enable WhatsApp sending</label>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Phone Number ID</label><input id="s-wa-phone-id" type="text" placeholder="e.g. 1029384756"/></div>
+            <div class="form-group"><label>Access Token <span style="color:var(--muted);font-weight:400">(blank = keep)</span></label><input id="s-wa-token" type="password" placeholder="&bull;&bull;&bull;&bull;&bull;&bull;"/></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Template Name</label><input id="s-wa-template" type="text" placeholder="invoice_notification"/></div>
+            <div class="form-group"><label>Template Language</label><input id="s-wa-lang" type="text" placeholder="en"/></div>
+          </div>
+          <button class="btn btn-primary" onclick="saveWhatsAppSettings()">Save WhatsApp Settings</button>
+          <div class="form-group" style="margin-top:14px"><label>Send test to (your own WhatsApp number)</label><input id="s-wa-test-to" type="text" placeholder="03001234567"/></div>
+          <button class="btn btn-ghost" onclick="testWhatsApp()">Send Test WhatsApp</button>
         </div>
         <div class="card">
           <div class="card-title">Change Password</div>
@@ -1078,6 +1098,7 @@ function renderInvoices() {
     <td><span class="badge ${invStatusBadge(inv.status)}">${inv.status}</span></td>
     <td><div class="flex">
       <button class="btn btn-ghost btn-xs" onclick="viewInvoice(${inv.id})">View</button>
+      ${inv.customer_phone ? `<button class="btn btn-xs" style="background:#25d366;color:#fff" onclick="whatsappFromTable(${inv.id})">WA</button>` : ''}
       ${inv.status==='Draft' ? `<button class="btn btn-xs" style="background:var(--accent);color:#fff" onclick="changeInvStatus(${inv.id},'Sent')">Send</button>` : ''}
       ${inv.status==='Sent' ? `<button class="btn btn-success btn-xs" onclick="changeInvStatus(${inv.id},'Paid')">Mark Paid</button>` : ''}
       <button class="btn btn-ghost btn-xs" onclick="editInvoice(${inv.id})">Edit</button>
@@ -1235,9 +1256,36 @@ async function viewInvoice(id) {
     <button class="btn btn-ghost" onclick="closeModal('modal-inv-view')">Close</button>
     ${inv.status==='Draft' ? `<button class="btn btn-primary" onclick="changeInvStatus(${inv.id},'Sent').then(()=>closeModal('modal-inv-view'))">Mark Sent</button>` : ''}
     ${inv.status==='Sent' ? `<button class="btn btn-success" onclick="changeInvStatus(${inv.id},'Paid').then(()=>closeModal('modal-inv-view'))">Mark Paid</button>` : ''}
+    ${inv.customer_phone ? `<button class="btn btn-success" style="background:#25d366" onclick="sendInvoiceWhatsApp(${inv.id})">&#x1F4F1; WhatsApp</button>` : ''}
     <button class="btn btn-ghost" onclick="printInvoice()">&#x1F5A8; Print</button>`;
 
   openModal('modal-inv-view');
+}
+
+// Render the on-screen invoice (#printable-invoice) to a PNG blob via html2canvas.
+async function renderInvoiceImage() {
+  const el = document.getElementById('printable-invoice');
+  if (!el || typeof html2canvas !== 'function') return null;
+  const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+  return await new Promise(res => canvas.toBlob(res, 'image/png'));
+}
+function blobToDataURL(blob) { return new Promise((resolve, reject) => { const r = new FileReader(); r.onloadend = () => resolve(r.result); r.onerror = reject; r.readAsDataURL(blob); }); }
+
+async function sendInvoiceWhatsApp(id) {
+  try {
+    const blob = await renderInvoiceImage();
+    if (!blob) { alert('Could not render the invoice image. Try opening the preview again.'); return; }
+    const image_base64 = await blobToDataURL(blob);
+    await api('POST', '/invoices/' + id + '/send-whatsapp', { image_base64 });
+    alert('✅ Invoice sent via WhatsApp.');
+    loadInvoices();
+  } catch (e) { alert('WhatsApp send failed: ' + (e.message || e)); }
+}
+
+// One-click from the invoices table: open the preview (renders the image) then send.
+async function whatsappFromTable(id) {
+  await viewInvoice(id);
+  await sendInvoiceWhatsApp(id);
 }
 
 function printInvoice() {
@@ -1495,6 +1543,15 @@ async function loadSettings() {
   document.getElementById('s-email').value = s.owner_email||'';
   document.getElementById('s-rem1').value = s.reminder_days_before||7;
   document.getElementById('s-rem2').value = s.reminder_days_before_2||1;
+  const waOn = document.getElementById('s-wa-on'); if (waOn) waOn.checked = s.wa_api_enabled === 'true';
+  const setv = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  setv('s-wa-phone-id', s.wa_phone_number_id || '');
+  setv('s-wa-template', s.wa_template_name || 'invoice_notification');
+  setv('s-wa-lang', s.wa_template_lang || 'en');
+  const waMsg = document.getElementById('s-wa-msg');
+  if (waMsg) waMsg.innerHTML = s.wa_token_set === 'true'
+    ? '<span style="color:var(--green)">Token saved &mdash; leave blank to keep it.</span>'
+    : '<span style="color:var(--muted)">Not configured yet &mdash; add Phone Number ID + Access Token, enable, and Save.</span>';
 }
 
 async function saveSettings() {
@@ -1506,6 +1563,30 @@ async function saveSettings() {
     reminder_days_before_2: document.getElementById('s-rem2').value,
   });
   alert('Settings saved!');
+}
+
+async function saveWhatsAppSettings() {
+  const body = {
+    wa_api_enabled: document.getElementById('s-wa-on').checked ? 'true' : 'false',
+    wa_phone_number_id: document.getElementById('s-wa-phone-id').value.trim(),
+    wa_template_name: document.getElementById('s-wa-template').value.trim() || 'invoice_notification',
+    wa_template_lang: document.getElementById('s-wa-lang').value.trim() || 'en',
+  };
+  const tok = document.getElementById('s-wa-token').value.trim();
+  if (tok) body.wa_access_token = tok;
+  await api('PUT', '/settings', body);
+  document.getElementById('s-wa-token').value = '';
+  alert('WhatsApp settings saved!');
+  loadSettings();
+}
+
+async function testWhatsApp() {
+  const to = document.getElementById('s-wa-test-to').value.trim();
+  if (!to) { alert('Enter your own WhatsApp number above to send a test.'); return; }
+  try {
+    const r = await api('POST', '/settings/test-whatsapp', { to });
+    alert('✅ Test sent to ' + to + ' — check WhatsApp (id: ' + (r.message_id || 'ok') + ')');
+  } catch (e) { alert('Test failed: ' + (e.message || e)); }
 }
 
 async function changePassword() {

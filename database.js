@@ -177,6 +177,8 @@ async function initDb() {
       email_enabled: 'false', smtp_host: '', smtp_port: '587',
       smtp_user: '', smtp_pass: '', owner_email: '',
       owner_name: 'Business Owner', business_name: 'COUNTX',
+      wa_api_enabled: 'false', wa_phone_number_id: '', wa_access_token: '',
+      wa_template_name: 'invoice_notification', wa_template_lang: 'en', wa_api_version: 'v21.0',
     };
     for (const [k, v] of Object.entries(defaults)) {
       await conn.execute('INSERT IGNORE INTO settings (`key`,value) VALUES (?,?)', [k, v]);

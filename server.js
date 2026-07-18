@@ -442,6 +442,8 @@ app.get('/api/settings', auth, async (req, res) => {
     const rows = await db.getAllSettings();
     const obj = {};
     rows.forEach(r => { obj[r.key] = r.value; });
+    obj.wa_token_set = obj.wa_access_token ? 'true' : 'false';
+    delete obj.wa_access_token;   // never expose the token to the browser
     res.json(obj);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -452,6 +454,79 @@ app.put('/api/settings', auth, async (req, res) => {
       await db.setSetting(k, v);
     }
     res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+/* ── WhatsApp (Meta Cloud API) ── */
+// Upload a PNG to WhatsApp media, then send the approved template with an image header + body vars.
+async function waUploadAndSend(s, phone, imgBuf, filename, bodyTexts) {
+  const base = `https://graph.facebook.com/${s.wa_api_version || 'v21.0'}`;
+  const form = new FormData();
+  form.append('messaging_product', 'whatsapp');
+  form.append('file', new Blob([imgBuf], { type: 'image/png' }), filename);
+  const upRes = await fetch(`${base}/${s.wa_phone_number_id}/media`, {
+    method: 'POST', headers: { Authorization: `Bearer ${s.wa_access_token}` }, body: form,
+  });
+  const upJson = await upRes.json();
+  if (!upRes.ok || !upJson.id) return { ok: false, error: 'Media upload failed: ' + JSON.stringify(upJson.error || upJson) };
+  const payload = {
+    messaging_product: 'whatsapp', to: phone, type: 'template',
+    template: {
+      name: s.wa_template_name || 'invoice_notification',
+      language: { code: s.wa_template_lang || 'en' },
+      components: [
+        { type: 'header', parameters: [{ type: 'image', image: { id: upJson.id } }] },
+        { type: 'body', parameters: bodyTexts.map(t => ({ type: 'text', text: String(t) })) },
+      ],
+    },
+  };
+  const msgRes = await fetch(`${base}/${s.wa_phone_number_id}/messages`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${s.wa_access_token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const msgJson = await msgRes.json();
+  if (!msgRes.ok) return { ok: false, error: 'Send failed: ' + JSON.stringify(msgJson.error || msgJson) };
+  return { ok: true, message_id: msgJson.messages && msgJson.messages[0] && msgJson.messages[0].id };
+}
+
+function waSettings(rows) { const s = {}; rows.forEach(r => { s[r.key] = r.value; }); return s; }
+
+app.post('/api/invoices/:id/send-whatsapp', auth, async (req, res) => {
+  try {
+    const s = waSettings(await db.getAllSettings());
+    if (s.wa_api_enabled !== 'true') return res.status(400).json({ error: 'WhatsApp API is not enabled in Settings.' });
+    if (!s.wa_phone_number_id || !s.wa_access_token) return res.status(400).json({ error: 'WhatsApp API is not configured (Phone Number ID / token missing).' });
+    const inv = await db.getInvoiceById(req.params.id);
+    if (!inv) return res.status(404).json({ error: 'Invoice not found' });
+    let phone = String(inv.customer_phone || '').replace(/[^0-9]/g, '');
+    if (!phone) return res.status(400).json({ error: 'No phone number saved for this customer.' });
+    if (phone.startsWith('0')) phone = '92' + phone.slice(1);
+    const { image_base64 } = req.body;
+    if (!image_base64) return res.status(400).json({ error: 'Missing invoice image.' });
+    const buf = Buffer.from(String(image_base64).replace(/^data:image\/\w+;base64,/, ''), 'base64');
+    const amountStr = 'Rs ' + Number(inv.amount || 0).toLocaleString('en-PK', { maximumFractionDigits: 0 });
+    const r = await waUploadAndSend(s, phone, buf, `${inv.invoice_id}.png`, [inv.customer_name || '', inv.invoice_id || '', amountStr, inv.due_date || '-']);
+    if (!r.ok) return res.status(502).json({ error: r.error });
+    if (inv.status === 'Draft') await db.updateInvoiceStatus(inv.id, 'Sent');
+    await db.createNotification('info', `Invoice ${inv.invoice_id} sent to ${inv.customer_name} via WhatsApp`, null, inv.customer_id);
+    res.json({ success: true, message_id: r.message_id });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/settings/test-whatsapp', auth, async (req, res) => {
+  try {
+    const s = waSettings(await db.getAllSettings());
+    if (s.wa_api_enabled !== 'true') return res.status(400).json({ error: 'WhatsApp API is not enabled. Turn it on and Save first.' });
+    if (!s.wa_phone_number_id || !s.wa_access_token) return res.status(400).json({ error: 'WhatsApp API is not configured (Phone Number ID / token missing). Save your settings first.' });
+    let phone = String(req.body.to || '').replace(/[^0-9]/g, '');
+    if (!phone) return res.status(400).json({ error: 'Enter a test phone number (your own WhatsApp).' });
+    if (phone.startsWith('0')) phone = '92' + phone.slice(1);
+    const buf = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+    const today = new Date().toISOString().split('T')[0];
+    const r = await waUploadAndSend(s, phone, buf, 'test.png', ['Test Customer', 'INV-TEST', 'Rs 0', today]);
+    if (!r.ok) return res.status(502).json({ error: r.error });
+    res.json({ success: true, message_id: r.message_id });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
