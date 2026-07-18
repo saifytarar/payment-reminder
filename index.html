@@ -204,6 +204,9 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div id="page-payments" class="page">
       <div class="flex-between">
         <div class="flex">
+          <select id="pay-filter-customer" onchange="loadPayments()" style="width:180px">
+            <option value="">All Customers</option>
+          </select>
           <select id="pay-filter-month" onchange="loadPayments()" style="width:160px">
             <option value="">All Months</option>
           </select>
@@ -875,11 +878,19 @@ async function loadPayments() {
       mSel.innerHTML += `<option value="${val}">${label}</option>`;
     }
   }
+  const cSel = document.getElementById('pay-filter-customer');
+  if (cSel && cSel.options.length <= 1) {
+    if (!allCustomers || !allCustomers.length) { try { allCustomers = await api('GET', '/customers') || []; } catch (e) {} }
+    cSel.innerHTML = '<option value="">All Customers</option>' + (allCustomers || []).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  }
   const month = document.getElementById('pay-filter-month')?.value || '';
   const freq = document.getElementById('pay-filter-freq')?.value || '';
-  let url = '/payments?';
-  if (month) url += 'month='+month+'&';
-  if (freq) url += 'frequency='+freq;
+  const customer_id = cSel?.value || '';
+  const params = [];
+  if (month) params.push('month=' + month);
+  if (freq) params.push('frequency=' + freq);
+  if (customer_id) params.push('customer_id=' + customer_id);
+  const url = '/payments' + (params.length ? '?' + params.join('&') : '');
   const rows = await api('GET', url);
   if (!rows) return;
   const total = rows.reduce((s,r)=>s+parseFloat(r.amount||0),0);
