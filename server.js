@@ -211,6 +211,12 @@ app.get('/api/payments/due', auth, async (req, res) => {
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+/* Unified due + overdue list for the merged "Due Payments" page. */
+app.get('/api/payments/outstanding', auth, async (req, res) => {
+  try { await db.syncAllCustomerPeriods(); res.json(await db.getOutstandingByCustomer()); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/payments/calendar', auth, async (req, res) => {
   try {
     const { start, end } = req.query;
@@ -271,6 +277,7 @@ async function settleInvoicePeriods(invoiceId, customerId, invObj) {
         customer_id: cust.id, amount: p.amount, payment_date: p.period_date,
         frequency: cust.payment_frequency, frequency_value: cust.frequency_value,
         next_due_date: next, status: 'paid', notes: `Invoice cycle due ${p.period_date}`, source: 'invoice',
+        invoice_id: invoiceId,
       });
     }
     await db.markInvoicePeriodsPaid(invoiceId, today);
@@ -283,6 +290,7 @@ async function settleInvoicePeriods(invoiceId, customerId, invObj) {
         customer_id: inv.customer_id, amount: inv.amount, payment_date: today,
         frequency: c?.payment_frequency || 'monthly', frequency_value: c?.frequency_value || 1,
         next_due_date: today, status: 'paid', notes: `Invoice ${inv.invoice_id} paid`, source: 'invoice',
+        invoice_id: invoiceId,
       });
     }
   }

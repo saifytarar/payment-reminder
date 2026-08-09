@@ -13,7 +13,21 @@
   --border:#2a3347;--text:#e8eaf0;--muted:#8892a4;--accent:#4f8ef7;
   --green:#22c55e;--red:#ef4444;--yellow:#f59e0b;--purple:#a855f7;
   --radius:10px;--font:'Inter',system-ui,sans-serif;
+  color-scheme:dark;
 }
+:root[data-theme="light"]{
+  --bg:#f5f7fb;--sidebar:#ffffff;--card:#ffffff;--card2:#eef2f8;
+  --border:#dbe2ec;--text:#1a2233;--muted:#5b6675;--accent:#2f6fe0;
+  --green:#16a34a;--red:#dc2626;--yellow:#d97706;--purple:#9333ea;
+  color-scheme:light;
+}
+:root[data-theme="light"] tr:hover td{background:rgba(0,0,0,.03)}
+:root[data-theme="light"] .btn-ghost:hover{background:#e9eef6}
+:root[data-theme="light"] .card,:root[data-theme="light"] .stat-card{box-shadow:0 1px 3px rgba(16,24,40,.06)}
+/* Autocomplete */
+.ac-menu{position:absolute;top:100%;left:0;right:0;z-index:60;background:var(--card);border:1px solid var(--border);border-radius:8px;margin-top:4px;max-height:240px;overflow-y:auto;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.ac-item{padding:8px 12px;cursor:pointer;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ac-item:hover,.ac-item.active{background:var(--card2)}
 body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex;min-height:100vh;font-size:14px}
 a{color:var(--accent);text-decoration:none}
 /* Login */
@@ -119,6 +133,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .inv-item-row{display:grid;grid-template-columns:1fr 100px 100px 36px;gap:8px;align-items:center;margin-bottom:8px}
 .inv-items-header{display:grid;grid-template-columns:1fr 100px 100px 36px;gap:8px;margin-bottom:6px;font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase}
 </style>
+<script>(function(){try{document.documentElement.setAttribute('data-theme',localStorage.getItem('theme')||'dark');}catch(e){}})();</script>
 </head>
 <body>
 
@@ -144,7 +159,6 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div class="nav-item" data-page="customers"><span class="nav-icon">&#x1F465;</span> Customers</div>
     <div class="nav-item" data-page="payments"><span class="nav-icon">&#x1F4B0;</span> Payment History</div>
     <div class="nav-item" data-page="due-payments"><span class="nav-icon">&#x23F0;</span> Due Payments</div>
-    <div class="nav-item" data-page="overdue"><span class="nav-icon">&#x1F534;</span> Overdue</div>
     <div class="nav-item" data-page="invoices"><span class="nav-icon">&#x1F9FE;</span> Invoices</div>
     <div class="nav-item" data-page="quick-invoice"><span class="nav-icon">&#x26A1;</span> Quick Invoice</div>
     <div class="nav-item" data-page="expenses"><span class="nav-icon">&#x1F4C9;</span> Expenses</div>
@@ -160,6 +174,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div class="topbar">
       <h2 id="page-title">Dashboard</h2>
       <div class="flex">
+        <button class="btn btn-ghost btn-sm" id="theme-toggle" onclick="toggleTheme()" title="Toggle light / dark theme">&#x1F319;</button>
         <button class="btn btn-ghost btn-sm" onclick="showNotifs()" style="position:relative">
           &#x1F514; <span id="notif-count" style="display:none" class="notif-dot"></span>
         </button>
@@ -195,7 +210,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
       </div>
       <div class="card" style="padding:0">
         <div class="table-wrap"><table id="cust-table">
-          <thead><tr><th>Name</th><th>Company</th><th>Phone</th><th>Frequency</th><th>Amount</th><th>Next Due</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Name</th><th>Company</th><th>Phone</th><th>Frequency</th><th>Amount</th><th>Next Due</th></tr></thead>
           <tbody id="cust-tbody"></tbody>
         </table></div>
       </div>
@@ -205,9 +220,12 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div id="page-payments" class="page">
       <div class="flex-between">
         <div class="flex">
-          <select id="pay-filter-customer" onchange="loadPayments()" style="width:180px">
-            <option value="">All Customers</option>
-          </select>
+          <div style="position:relative;width:200px">
+            <input type="text" id="pay-filter-customer-input" placeholder="All Customers" autocomplete="off"
+                   oninput="onPayCustInput()" onfocus="onPayCustInput()" onkeydown="onPayCustKey(event)"/>
+            <input type="hidden" id="pay-filter-customer"/>
+            <div id="pay-cust-menu" class="ac-menu" style="display:none"></div>
+          </div>
           <select id="pay-filter-month" onchange="loadPayments()" style="width:160px">
             <option value="">All Months</option>
           </select>
@@ -227,22 +245,20 @@ tr:hover td{background:rgba(255,255,255,.02)}
       </div>
     </div>
 
-    <!-- DUE PAYMENTS -->
+    <!-- DUE PAYMENTS (due + overdue, unified) -->
     <div id="page-due-payments" class="page">
-      <div class="card" style="padding:0">
-        <div class="table-wrap"><table>
-          <thead><tr><th>Customer</th><th>Company</th><th>Phone</th><th>Amount</th><th>Due Date</th><th>Status</th><th>Actions</th></tr></thead>
-          <tbody id="due-tbody"></tbody>
-        </table></div>
+      <div class="flex-between">
+        <div class="text-sm">All outstanding payments — overdue and due within 7 days. Sort by <b>Due Days</b> to follow up the oldest first.</div>
+        <div style="font-size:13px;color:var(--muted)" id="due-summary"></div>
       </div>
-    </div>
-
-    <!-- OVERDUE -->
-    <div id="page-overdue" class="page">
       <div class="card" style="padding:0">
         <div class="table-wrap"><table>
-          <thead><tr><th>Customer</th><th>Company</th><th>Phone</th><th>Amount</th><th>Due Date</th><th>Days Overdue</th><th>Actions</th></tr></thead>
-          <tbody id="overdue-tbody"></tbody>
+          <thead><tr>
+            <th>Customer</th><th>Phone</th><th>Amount</th><th>Due Date</th>
+            <th id="due-days-th" style="cursor:pointer;user-select:none" onclick="sortDue()">Due Days &#x21C5;</th>
+            <th>Status</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="due-tbody"></tbody>
         </table></div>
       </div>
     </div>
@@ -442,9 +458,13 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div class="form-group"><label>Next Due Date</label><input id="cust-due" type="date"/></div>
   </div>
   <div class="form-group"><label>Notes</label><textarea id="cust-notes" rows="2"></textarea></div>
-  <div class="modal-footer">
-    <button class="btn btn-ghost" onclick="closeModal('modal-customer')">Cancel</button>
-    <button class="btn btn-primary" onclick="saveCustomer()">Save Customer</button>
+  <div class="modal-footer" style="justify-content:space-between">
+    <button class="btn btn-danger" id="cust-del-btn" style="display:none" onclick="deleteCustomerModal()">Delete</button>
+    <div class="flex" style="margin-left:auto">
+      <button class="btn btn-success" id="cust-paid-btn" style="display:none" onclick="markPaidFromModal()">Mark Paid</button>
+      <button class="btn btn-ghost" onclick="closeModal('modal-customer')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCustomer()">Save Customer</button>
+    </div>
   </div>
 </div>
 </div>
@@ -464,6 +484,18 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <button class="btn btn-ghost" onclick="closeModal('modal-mark-paid')">Cancel</button>
     <button class="btn btn-success" onclick="doMarkPaid()">Confirm Payment</button>
   </div>
+</div>
+</div>
+
+<!-- Payment Details Modal -->
+<div class="modal-overlay" id="modal-pay-view">
+<div class="modal" style="max-width:460px">
+  <div class="flex-between" style="margin-bottom:16px">
+    <h3>Payment Details</h3>
+    <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-pay-view')">&#x2715;</button>
+  </div>
+  <div id="pay-view-content"></div>
+  <div class="modal-footer" id="pay-view-actions"></div>
 </div>
 </div>
 
@@ -597,9 +629,11 @@ let currentUser = null;
 let allCustomers = [];
 let allInvoices = [];
 let allExpenses = [];
+let allPayments = [];
 let invFilter = 'all';
 let calYear, calMonth;
 let barChart = null;
+let lastChartData = null;
 let qiItems = [];
 let invItems = [];
 let sigDataUrl = null;
@@ -660,7 +694,7 @@ async function loadSignature() {
 // ── Navigation ─────────────────────────────────────────
 const pageTitles = {
   dashboard:'Dashboard', customers:'Customers', payments:'Payment History',
-  'due-payments':'Due Payments', overdue:'Overdue', invoices:'Invoices',
+  'due-payments':'Due Payments', invoices:'Invoices',
   'quick-invoice':'Quick Invoice', expenses:'Expenses', calendar:'Calendar', settings:'Settings'
 };
 
@@ -676,7 +710,7 @@ function navigateTo(page) {
   document.getElementById('page-title').textContent = pageTitles[page] || page;
   const loaders = {
     dashboard: loadDashboard, customers: renderCustomers, payments: loadPayments,
-    'due-payments': loadDuePayments, overdue: loadOverdue, invoices: loadInvoices,
+    'due-payments': loadDuePayments, invoices: loadInvoices,
     'quick-invoice': initQI, expenses: loadExpenses, calendar: initCalendar, settings: loadSettings
   };
   if (loaders[page]) loaders[page]();
@@ -738,7 +772,11 @@ async function loadDashboard() {
 function renderBarChart(data) {
   const ctx = document.getElementById('bar-chart');
   if (!ctx) return;
+  lastChartData = data;
   if (barChart) { barChart.destroy(); barChart = null; }
+  const css = getComputedStyle(document.documentElement);
+  const tick = (css.getPropertyValue('--muted') || '#8892a4').trim();
+  const grid = (css.getPropertyValue('--border') || '#2a3347').trim() + '80';
   const labels = data.map(d => {
     const [y,m] = d.month.split('-');
     return new Date(parseInt(y), parseInt(m)-1).toLocaleString('default',{month:'short',year:'2-digit'});
@@ -754,10 +792,10 @@ function renderBarChart(data) {
     },
     options: {
       responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ labels:{ color:'#8892a4', font:{ size:12 } } } },
+      plugins:{ legend:{ labels:{ color:tick, font:{ size:12 } } } },
       scales:{
-        x:{ ticks:{ color:'#8892a4' }, grid:{ color:'rgba(42,51,71,.5)' } },
-        y:{ ticks:{ color:'#8892a4', callback: v=>'PKR '+Number(v).toLocaleString() }, grid:{ color:'rgba(42,51,71,.5)' } }
+        x:{ ticks:{ color:tick }, grid:{ color:grid } },
+        y:{ ticks:{ color:tick, callback: v=>'PKR '+Number(v).toLocaleString() }, grid:{ color:grid } }
       }
     }
   });
@@ -780,22 +818,16 @@ function renderCustomers() {
   const tbody = document.getElementById('cust-tbody');
   if (!tbody) return;
   if (!allCustomers.length) {
-    tbody.innerHTML = '<tr><td colspan="8"><div class="empty"><div class="empty-icon">&#x1F465;</div>No customers yet. Click &ldquo;Add Customer&rdquo; to get started.</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><div class="empty-icon">&#x1F465;</div>No customers yet. Click &ldquo;Add Customer&rdquo; to get started.</div></td></tr>';
     return;
   }
-  tbody.innerHTML = allCustomers.map(c => `<tr>
+  tbody.innerHTML = allCustomers.map(c => `<tr onclick="editCustomer(${c.id})" style="cursor:pointer" title="Click to view / edit">
     <td><div style="font-weight:500">${esc(c.name)}</div></td>
     <td>${esc(c.company||'')}</td>
     <td>${esc(c.phone||'')}</td>
     <td>${freqLabel(c.payment_frequency, c.frequency_value)}</td>
     <td>${c.payment_amount>0 ? fmtPKR(c.payment_amount) : '<span class="text-sm">&mdash;</span>'}</td>
     <td>${c.next_due_date||'<span class="text-sm">&mdash;</span>'}</td>
-    <td><span class="badge ${statusBadge(c.payment_status)}">${fmtStatus(c.payment_status)}</span></td>
-    <td><div class="flex">
-      ${c.payment_amount>0 ? `<button class="btn btn-success btn-xs" onclick="openMarkPaid(${c.id},'${esc(c.name)}',${c.payment_amount})">Paid</button>` : ''}
-      <button class="btn btn-ghost btn-xs" onclick="editCustomer(${c.id})">Edit</button>
-      <button class="btn btn-danger btn-xs" onclick="deleteCustomer(${c.id})">Del</button>
-    </div></td>
   </tr>`).join('');
 }
 
@@ -823,8 +855,29 @@ function openCustomerModal(data) {
   document.getElementById('cust-freq-val').value = data?.frequency_value || 1;
   document.getElementById('cust-amount').value = data?.payment_amount || '';
   document.getElementById('cust-due').value = data?.next_due_date || '';
+  const editing = !!(data && data.id);
+  const delBtn = document.getElementById('cust-del-btn');
+  const paidBtn = document.getElementById('cust-paid-btn');
+  if (delBtn) delBtn.style.display = editing ? 'inline-flex' : 'none';
+  if (paidBtn) paidBtn.style.display = (editing && parseFloat(data.payment_amount) > 0) ? 'inline-flex' : 'none';
   toggleFreqValue();
   openModal('modal-customer');
+}
+
+function deleteCustomerModal() {
+  const id = document.getElementById('cust-id').value;
+  if (!id) return;
+  closeModal('modal-customer');
+  deleteCustomer(id);
+}
+
+function markPaidFromModal() {
+  const id = document.getElementById('cust-id').value;
+  const name = document.getElementById('cust-name').value;
+  const amount = parseFloat(document.getElementById('cust-amount').value) || 0;
+  if (!id) return;
+  closeModal('modal-customer');
+  openMarkPaid(id, name, amount);
 }
 
 async function editCustomer(id) {
@@ -885,27 +938,28 @@ async function doMarkPaid() {
   await loadCustomers();
   if (document.getElementById('page-dashboard').classList.contains('active')) loadDashboard();
   if (document.getElementById('page-payments').classList.contains('active')) loadPayments();
+  if (document.getElementById('page-due-payments').classList.contains('active')) loadDuePayments();
 }
 
 // ── Payments ───────────────────────────────────────────
 async function loadPayments() {
   const mSel = document.getElementById('pay-filter-month');
   if (mSel && mSel.options.length <= 1) {
-    for (let i=11; i>=0; i--) {
-      const d = new Date(); d.setMonth(d.getMonth()-i);
-      const val = d.toISOString().slice(0,7);
-      const label = d.toLocaleString('default',{month:'long',year:'numeric'});
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      const label = d.toLocaleString('default', { month: 'long', year: 'numeric' });
       mSel.innerHTML += `<option value="${val}">${label}</option>`;
     }
+    // Default the month filter to last month (e.g. in August it lands on July).
+    const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    mSel.value = `${lm.getFullYear()}-${String(lm.getMonth()+1).padStart(2,'0')}`;
   }
-  const cSel = document.getElementById('pay-filter-customer');
-  if (cSel && cSel.options.length <= 1) {
-    if (!allCustomers || !allCustomers.length) { try { allCustomers = await api('GET', '/customers') || []; } catch (e) {} }
-    cSel.innerHTML = '<option value="">All Customers</option>' + (allCustomers || []).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
-  }
+  if (!allCustomers || !allCustomers.length) { try { allCustomers = await api('GET', '/customers') || []; } catch (e) {} }
   const month = document.getElementById('pay-filter-month')?.value || '';
   const freq = document.getElementById('pay-filter-freq')?.value || '';
-  const customer_id = cSel?.value || '';
+  const customer_id = document.getElementById('pay-filter-customer')?.value || '';
   const params = [];
   if (month) params.push('month=' + month);
   if (freq) params.push('frequency=' + freq);
@@ -913,6 +967,7 @@ async function loadPayments() {
   const url = '/payments' + (params.length ? '?' + params.join('&') : '');
   const rows = await api('GET', url);
   if (!rows) return;
+  allPayments = rows;
   const total = rows.reduce((s,r)=>s+parseFloat(r.amount||0),0);
   const ps = document.getElementById('pay-summary');
   if (ps) ps.textContent = `${rows.length} records — Total: ${fmtPKR(total)}`;
@@ -928,8 +983,84 @@ async function loadPayments() {
     <td>${freqLabel(p.frequency, p.frequency_value)}</td>
     <td><span class="badge ${p.source==='invoice'?'badge-purple':'badge-blue'}">${p.source||'scheduled'}</span></td>
     <td class="text-sm">${esc(p.notes||'')}</td>
-    <td><button class="btn btn-danger btn-xs" onclick="deletePayment(${p.id})">Del</button></td>
+    <td><div class="flex">
+      <button class="btn btn-ghost btn-xs" onclick="viewPayment(${p.id})">View</button>
+      <button class="btn btn-danger btn-xs" onclick="deletePayment(${p.id})">Del</button>
+    </div></td>
   </tr>`).join('');
+}
+
+// ── Payment History customer autocomplete ──────────────
+async function onPayCustInput() {
+  if (!allCustomers || !allCustomers.length) { try { allCustomers = await api('GET', '/customers') || []; } catch (e) {} }
+  const input = document.getElementById('pay-filter-customer-input');
+  const menu = document.getElementById('pay-cust-menu');
+  if (!input || !menu) return;
+  const q = input.value.trim().toLowerCase();
+  const matches = (allCustomers || []).filter(c =>
+    !q || (c.name||'').toLowerCase().includes(q) || (c.company||'').toLowerCase().includes(q));
+  let html = `<div class="ac-item" onclick="selectPayCust('')">All Customers</div>`;
+  html += matches.slice(0, 50).map(c =>
+    `<div class="ac-item" onclick="selectPayCust('${c.id}')">${esc(c.name)}${c.company ? ` <span style="color:var(--muted)">(${esc(c.company)})</span>` : ''}</div>`).join('');
+  menu.innerHTML = html;
+  menu.style.display = 'block';
+}
+function selectPayCust(id) {
+  document.getElementById('pay-filter-customer').value = id || '';
+  const input = document.getElementById('pay-filter-customer-input');
+  if (!id) input.value = '';
+  else { const c = (allCustomers||[]).find(x => String(x.id) === String(id)); input.value = c ? c.name : ''; }
+  document.getElementById('pay-cust-menu').style.display = 'none';
+  loadPayments();
+}
+function onPayCustKey(e) {
+  const menu = document.getElementById('pay-cust-menu');
+  if (!menu) return;
+  if (e.key === 'Escape') { menu.style.display = 'none'; return; }
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const items = menu.querySelectorAll('.ac-item');
+    const typed = document.getElementById('pay-filter-customer-input').value.trim();
+    // With text typed, prefer the first real match (index 1) over the "All Customers" row.
+    const target = (typed && items[1]) ? items[1] : items[0];
+    if (target) target.click();
+  }
+}
+// Close the customer menu on an outside click.
+document.addEventListener('click', e => {
+  const box = document.getElementById('pay-cust-menu');
+  const input = document.getElementById('pay-filter-customer-input');
+  if (!box || !input) return;
+  if (e.target !== input && !box.contains(e.target)) box.style.display = 'none';
+});
+
+// View a single payment's details, including the invoice it settled (if any).
+function viewPayment(id) {
+  const p = (allPayments || []).find(x => String(x.id) === String(id));
+  if (!p) return;
+  const rows = [
+    ['Customer', esc(p.customer_name) + (p.customer_company ? ` <span class="text-sm">(${esc(p.customer_company)})</span>` : '')],
+    ['Amount', `<span style="color:var(--green);font-weight:700">${fmtPKR(p.amount)}</span>`],
+    ['Payment Date', esc(p.payment_date)],
+    ['Frequency', freqLabel(p.frequency, p.frequency_value)],
+    ['Source', `<span class="badge ${p.source==='invoice'?'badge-purple':'badge-blue'}">${esc(p.source||'scheduled')}</span>`],
+    ['Notes', esc(p.notes || '') || '<span class="text-sm">&mdash;</span>'],
+  ];
+  const details = rows.map(([k,v]) =>
+    `<div style="display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--border)"><span class="text-sm">${k}</span><span style="text-align:right">${v}</span></div>`).join('');
+  const invBlock = p.invoice_id
+    ? `<div style="margin-top:16px;padding:14px;background:var(--card2);border-radius:8px">
+         <div class="text-sm" style="margin-bottom:8px">Received against invoice</div>
+         <div class="flex-between">
+           <div><span style="font-weight:600;color:var(--accent)">${esc(p.invoice_number || ('#'+p.invoice_id))}</span>
+           ${p.invoice_status ? ` <span class="badge ${invStatusBadge(p.invoice_status)}">${esc(p.invoice_status)}</span>` : ''}</div>
+           <button class="btn btn-primary btn-sm" onclick="closeModal('modal-pay-view');viewInvoice(${p.invoice_id})">View Invoice</button>
+         </div>
+       </div>`
+    : `<div class="text-sm" style="margin-top:16px">Not linked to an invoice (recorded as a scheduled payment).</div>`;
+  document.getElementById('pay-view-content').innerHTML = details + invBlock;
+  document.getElementById('pay-view-actions').innerHTML = `<button class="btn btn-ghost" onclick="closeModal('modal-pay-view')">Close</button>`;
+  openModal('modal-pay-view');
 }
 
 async function deletePayment(id) {
@@ -938,54 +1069,69 @@ async function deletePayment(id) {
   loadPayments();
 }
 
+// ── Due Payments (unified due + overdue) ───────────────
+let DUE_ROWS = [];
+let dueSortDir = 'desc';   // desc = most overdue (oldest) first
+
 async function loadDuePayments() {
-  const rows = await api('GET', '/payments/due');
-  const tbody = document.getElementById('due-tbody');
-  if (!rows || !rows.length) {
-    tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><div class="empty-icon">&#x2705;</div>No payments due soon</div></td></tr>';
-    return;
-  }
-  tbody.innerHTML = rows.map(c=>`<tr>
-    <td><div style="font-weight:500">${esc(c.name)}</div></td>
-    <td>${esc(c.company||'')}</td>
-    <td>${esc(c.phone||'')}</td>
-    <td style="font-weight:600">${fmtPKR(c.payment_amount)}</td>
-    <td>${c.next_due_date}</td>
-    <td><span class="badge ${statusBadge(c.payment_status)}">${fmtStatus(c.payment_status)}</span></td>
-    <td><button class="btn btn-success btn-xs" onclick="openMarkPaid(${c.id},'${esc(c.name)}',${c.payment_amount})">Mark Paid</button></td>
-  </tr>`).join('');
+  const rows = await api('GET', '/payments/outstanding');
+  DUE_ROWS = Array.isArray(rows) ? rows : [];
+  renderDuePayments();
 }
 
-async function loadOverdue() {
-  const rows = await api('GET', '/payments/overdue');
-  const tbody = document.getElementById('overdue-tbody');
-  if (!rows || !rows.length) {
-    tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><div class="empty-icon">&#x2705;</div>No overdue payments</div></td></tr>';
+function sortDue() {
+  dueSortDir = dueSortDir === 'desc' ? 'asc' : 'desc';
+  const th = document.getElementById('due-days-th');
+  if (th) th.innerHTML = 'Due Days ' + (dueSortDir === 'desc' ? '&#x25BC;' : '&#x25B2;');
+  renderDuePayments();
+}
+
+function renderDuePayments() {
+  const tbody = document.getElementById('due-tbody');
+  if (!tbody) return;
+  const rows = DUE_ROWS.slice().sort((a,b) =>
+    dueSortDir === 'desc' ? (b.due_days - a.due_days) : (a.due_days - b.due_days));
+  const summary = document.getElementById('due-summary');
+  if (summary) {
+    const overdueCount = rows.filter(r => r.due_days > 0).length;
+    summary.textContent = `${rows.length} outstanding — ${overdueCount} overdue`;
+  }
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><div class="empty-icon">&#x2705;</div>Nothing due or overdue</div></td></tr>';
     return;
   }
-  tbody.innerHTML = rows.map(c=>{
-    const cycles = c.cycles_overdue || 1;
-    const total = (c.total_due != null) ? c.total_due : c.amount;
-    const oldest = (c.due_dates && c.due_dates[0]) || String(c.next_due_date||'').split('T')[0];
+  tbody.innerHTML = rows.map(c => {
+    const cycles = c.cycles_overdue || 0;
+    const overdue = c.due_days > 0;
+    const dueToday = c.due_days === 0;
+    const total = (c.total_due != null && cycles > 0) ? c.total_due : c.amount;
     const amtCell = cycles > 1
       ? `<div style="color:var(--red);font-weight:600">${fmtPKR(total)}</div><div style="font-size:11px;color:var(--muted)">${cycles} cycles &times; ${fmtPKR(c.amount)}</div>`
-      : `<span style="color:var(--red);font-weight:600">${fmtPKR(total)}</span>`;
+      : `<span style="font-weight:600${overdue ? ';color:var(--red)' : ''}">${fmtPKR(total)}</span>`;
+    const daysBadge = overdue
+      ? `<span class="badge badge-red">${c.due_days} days</span>`
+      : (dueToday ? `<span class="badge badge-yellow">Today</span>` : `<span class="badge badge-blue">in ${Math.abs(c.due_days)}d</span>`);
+    const statusHtml = overdue
+      ? `<span class="badge badge-red">Overdue</span>`
+      : (dueToday ? `<span class="badge badge-yellow">Due Today</span>` : `<span class="badge badge-blue">Due Soon</span>`);
     const settleBtn = cycles > 1
       ? `<button class="btn btn-xs" style="background:#0ea5e9;color:#fff" onclick="settleAllOverdue(${c.id},'${esc(c.customer_name)}',${cycles},${total})">Settle All (${cycles})</button>` : '';
-    const invBtn = (c.invoiceable_count > 0)
-      ? `<button class="btn btn-xs" style="background:var(--accent);color:#fff" onclick="openInvoiceForOverdue(${c.id})">Create Invoice</button>`
-      : `<button class="btn btn-xs" disabled style="opacity:.5;cursor:not-allowed" title="All overdue months are already on an invoice">Invoiced</button>`;
+    let invBtn = '';
+    if (cycles > 0) {
+      invBtn = (c.invoiceable_count > 0)
+        ? `<button class="btn btn-xs" style="background:var(--accent);color:#fff" onclick="openInvoiceForOverdue(${c.id})">Create Invoice</button>`
+        : `<button class="btn btn-xs" disabled style="opacity:.5;cursor:not-allowed" title="All overdue months are already on an invoice">Invoiced</button>`;
+    }
     return `<tr>
-      <td><div style="font-weight:500">${esc(c.customer_name)}</div></td>
-      <td>${esc(c.company||'')}</td>
+      <td><div style="font-weight:500">${esc(c.customer_name)}</div><div class="text-sm">${esc(c.company||'')}</div></td>
       <td>${esc(c.phone||'')}</td>
       <td>${amtCell}</td>
-      <td>${oldest}</td>
-      <td><span class="badge badge-red">${c.days_overdue} days</span></td>
+      <td>${c.due_date||'&mdash;'}</td>
+      <td>${daysBadge}</td>
+      <td>${statusHtml}</td>
       <td><div class="flex">
         <button class="btn btn-success btn-xs" onclick="openMarkPaid(${c.id},'${esc(c.customer_name)}',${c.amount})">Mark Paid</button>
-        ${settleBtn}
-        ${invBtn}
+        ${settleBtn}${invBtn}
       </div></td>
     </tr>`;
   }).join('');
@@ -1008,7 +1154,7 @@ async function settleAllOverdue(id, name, cycles, total) {
   if (!confirm(`Settle ALL ${cycles} overdue month(s) for ${name} (${fmtPKR(total)})?\n\nThis records ${cycles} payment(s) and moves the due date forward.`)) return;
   try {
     await api('POST', '/customers/' + id + '/mark-paid', { all: true });
-    await loadOverdue();
+    await loadDuePayments();
     if (document.getElementById('page-dashboard').classList.contains('active')) loadDashboard();
   } catch (e) { alert('Failed: ' + (e.message || e)); }
 }
@@ -1091,7 +1237,7 @@ function renderInvoices() {
   }
   tbody.innerHTML = rows.map(inv=>`<tr>
     <td style="font-weight:600;color:var(--accent)">${esc(inv.invoice_id)}</td>
-    <td>${esc(inv.customer_name)}</td>
+    <td><div style="font-weight:500">${esc(inv.customer_name)}</div>${inv.customer_company?`<div class="text-sm">${esc(inv.customer_company)}</div>`:''}</td>
     <td style="font-weight:600">${fmtPKR(inv.amount)}</td>
     <td>${inv.invoice_date}</td>
     <td>${inv.due_date||'&mdash;'}</td>
@@ -1606,6 +1752,20 @@ function closeModal(id) { document.getElementById(id).classList.remove('open'); 
 document.querySelectorAll('.modal-overlay').forEach(el => {
   el.addEventListener('click', e => { if (e.target===el) el.classList.remove('open'); });
 });
+
+// ── Theme (light / dark) ───────────────────────────────
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem('theme', t); } catch (e) {}
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.innerHTML = t === 'light' ? '&#x1F319;' : '&#x2600;&#xFE0F;';  // moon while light, sun while dark
+  if (lastChartData && document.getElementById('page-dashboard')?.classList.contains('active')) renderBarChart(lastChartData);
+}
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+  applyTheme(cur === 'light' ? 'dark' : 'light');
+}
+applyTheme(document.documentElement.getAttribute('data-theme') || 'dark');
 
 // ── Utilities ──────────────────────────────────────────
 function today() { return new Date().toISOString().split('T')[0]; }

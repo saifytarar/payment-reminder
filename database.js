@@ -162,6 +162,23 @@ async function initDb() {
       await conn.execute(`ALTER TABLE payments ADD COLUMN source VARCHAR(50) DEFAULT 'scheduled'`);
     } catch(e) { /* already exists */ }
 
+    // Link a payment to the invoice it settled (if any)
+    try {
+      await conn.execute(`ALTER TABLE payments ADD COLUMN invoice_id INT DEFAULT NULL`);
+    } catch(e) { /* already exists */ }
+    // One-time backfill: recover the invoice link for existing invoice-settled
+    // payments by matching an already-paid billing period on (customer, date).
+    try {
+      await conn.query(`
+        UPDATE payments p
+        JOIN billing_periods bp
+          ON bp.customer_id = p.customer_id
+         AND bp.period_date = p.payment_date
+         AND bp.invoice_id IS NOT NULL
+        SET p.invoice_id = bp.invoice_id
+        WHERE p.source = 'invoice' AND p.invoice_id IS NULL`);
+    } catch(e) { /* best-effort, older rows may stay unlinked */ }
+
     // Default admin user
     const [users] = await conn.execute('SELECT COUNT(*) as n FROM users');
     if (users[0].n === 0) {
@@ -358,8 +375,12 @@ async function getOverdueCustomers() {
 /* === Payments === */
 async function getAllPayments(filters = {}) {
   let sql = `
-    SELECT p.*, c.name AS customer_name, c.company AS customer_company, c.phone AS customer_phone
-    FROM payments p JOIN customers c ON p.customer_id=c.id WHERE p.status='paid'`;
+    SELECT p.*, c.name AS customer_name, c.company AS customer_company, c.phone AS customer_phone,
+      inv.invoice_id AS invoice_number, inv.status AS invoice_status
+    FROM payments p
+    JOIN customers c ON p.customer_id=c.id
+    LEFT JOIN invoices inv ON p.invoice_id=inv.id
+    WHERE p.status='paid'`;
   const params = [];
   if (filters.customer_id) { sql += ' AND p.customer_id=?'; params.push(filters.customer_id); }
   if (filters.frequency)   { sql += ' AND p.frequency=?';   params.push(filters.frequency); }
@@ -380,9 +401,9 @@ async function getPaymentById(id) {
 }
 async function createPayment(d) {
   const [r] = await pool.execute(
-    'INSERT INTO payments (customer_id,amount,payment_date,frequency,frequency_value,next_due_date,status,notes,source) VALUES (?,?,?,?,?,?,?,?,?)',
+    'INSERT INTO payments (customer_id,amount,payment_date,frequency,frequency_value,next_due_date,status,notes,source,invoice_id) VALUES (?,?,?,?,?,?,?,?,?,?)',
     [d.customer_id, d.amount, d.payment_date, d.frequency||'monthly', d.frequency_value||1,
-     d.next_due_date, d.status||'paid', d.notes||'', d.source||'scheduled']
+     d.next_due_date, d.status||'paid', d.notes||'', d.source||'scheduled', d.invoice_id||null]
   );
   return r.insertId;
 }
@@ -421,7 +442,7 @@ async function getPaymentsForReminders(daysOffset) {
 /* === Invoices === */
 async function getAllInvoices() {
   const [r] = await pool.execute(`
-    SELECT i.*, c.name AS customer_name, c.phone AS customer_phone, c.whatsapp_consent
+    SELECT i.*, c.name AS customer_name, c.company AS customer_company, c.phone AS customer_phone, c.whatsapp_consent
     FROM invoices i JOIN customers c ON i.customer_id=c.id ORDER BY i.created_at DESC
   `);
   return r;
@@ -677,6 +698,50 @@ async function getOverdueAmount() {
   return +((parseFloat(r[0].total) || 0)).toFixed(2);
 }
 
+// Unified "outstanding" list: every customer that is overdue OR due within the next 7 days.
+// Overdue figures (cycles / total / oldest cycle / invoiceable) come from billing_periods;
+// upcoming-due customers carry a single scheduled amount. due_days is positive when overdue
+// (age of the oldest unpaid cycle), 0 when due today, negative when still upcoming.
+async function getOutstandingByCustomer() {
+  const [r] = await pool.execute(`
+    SELECT c.*,
+      agg.cycles_overdue,
+      agg.total_due,
+      agg.oldest_overdue,
+      agg.invoiceable_count,
+      DATEDIFF(CURDATE(), COALESCE(agg.oldest_overdue, c.next_due_date)) AS due_days
+    FROM customers c
+    LEFT JOIN (
+      SELECT bp.customer_id,
+        COUNT(*) AS cycles_overdue,
+        SUM(bp.amount) AS total_due,
+        DATE_FORMAT(MIN(bp.period_date),'%Y-%m-%d') AS oldest_overdue,
+        SUM(CASE WHEN bp.invoice_id IS NULL THEN 1 ELSE 0 END) AS invoiceable_count
+      FROM billing_periods bp
+      WHERE bp.status='pending' AND bp.period_date<=CURDATE()
+      GROUP BY bp.customer_id
+    ) agg ON agg.customer_id = c.id
+    WHERE c.payment_amount>0 AND c.next_due_date IS NOT NULL
+      AND (agg.cycles_overdue > 0 OR c.next_due_date <= DATE_ADD(CURDATE(), INTERVAL 7 DAY))
+    ORDER BY due_days DESC
+  `);
+  return r.map(row => {
+    const cycles = parseInt(row.cycles_overdue) || 0;
+    return {
+      id: row.id,
+      customer_name: row.name,
+      company: row.company,
+      phone: row.phone,
+      amount: row.payment_amount,
+      cycles_overdue: cycles,
+      total_due: (row.total_due != null && cycles > 0) ? +((parseFloat(row.total_due) || 0)).toFixed(2) : null,
+      invoiceable_count: parseInt(row.invoiceable_count) || 0,
+      due_date: cycles > 0 ? row.oldest_overdue : row.next_due_date,
+      due_days: parseInt(row.due_days) || 0,
+    };
+  });
+}
+
 module.exports = {
   pool, initDb, calcNextDue,
   getUserByUsername, getUserById, getPasswordHash, updateUser, updatePassword,
@@ -691,5 +756,5 @@ module.exports = {
   computeDueCycles, syncCustomerPeriods, syncAllCustomerPeriods, updateUnpaidPeriodAmounts,
   getInvoiceablePeriods, getPendingPeriodsDue, getPeriodsByIds, getPeriodsByInvoice,
   linkPeriodsToInvoice, unlinkInvoice, reopenInvoicePeriods, markInvoicePeriodsPaid, markPeriodsPaid,
-  resyncNextDueDate, getOverduePeriodsByCustomer, getOverdueAmount,
+  resyncNextDueDate, getOverduePeriodsByCustomer, getOverdueAmount, getOutstandingByCustomer,
 };
