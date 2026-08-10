@@ -1355,7 +1355,6 @@ async function viewInvoice(id) {
   try { items = JSON.parse(inv.content); if(!Array.isArray(items)) throw 0; }
   catch { items = [{desc: inv.content||'Service', qty:1, price:parseFloat(inv.amount)||0}]; }
   const total = items.reduce((s,it)=>s+(it.qty||1)*(it.price||0),0);
-  const sigHtml = sigDataUrl ? `<div class="inv-sig"><img src="${sigDataUrl}" style="max-height:70px;max-width:200px;margin-bottom:4px"/><div style="font-size:11px;color:#666">Authorized Signature</div></div>` : '';
 
   document.getElementById('inv-view-content').innerHTML = `
     <div class="invoice-preview" id="printable-invoice">
@@ -1366,8 +1365,7 @@ async function viewInvoice(id) {
         </div>
         <div style="text-align:right">
           <div style="font-size:18px;font-weight:700;color:#1a1a2e">COUNTX</div>
-          <div style="color:#555;font-size:12px;margin-top:4px">Date: ${inv.invoice_date}</div>
-          ${inv.due_date ? `<div style="color:#555;font-size:12px">Due: ${inv.due_date}</div>` : ''}
+          <div style="color:#555;font-size:12px;margin-top:4px">Date: ${fmtInvDate(inv.invoice_date)}</div>
           <div style="margin-top:6px"><span style="background:${inv.status==='Paid'?'#22c55e':inv.status==='Sent'?'#4f8ef7':'#8892a4'};color:#fff;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600">${inv.status}</span></div>
         </div>
       </div>
@@ -1390,12 +1388,24 @@ async function viewInvoice(id) {
           </tr>`).join('')}
           <tr class="inv-total-row">
             <td colspan="4" style="text-align:right;padding-right:14px">Total Amount</td>
-            <td style="text-align:right;font-size:16px;color:#2563eb">${fmtPKR(total)}</td>
+            <td style="text-align:right;font-size:16px;color:#111;font-weight:700">${fmtPKR(total)}</td>
           </tr>
         </tbody>
       </table>
-      ${sigHtml}
-      <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e8eaf0;color:#666;font-size:11px;text-align:center">Thank you for your business</div>
+      <div style="margin-top:22px;display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap">
+        <div style="font-size:11.5px;color:#333;line-height:1.55">
+          <div style="font-weight:700;color:#1a1a2e;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;font-size:11px">Online Payment</div>
+          <div><b>Meezan Bank</b> &nbsp;0204 0100444043</div>
+          <div><b>HBL</b> &nbsp;2297 7000487803</div>
+          <div><b>Jazzcash / Easypaisa</b> &nbsp;03004076533</div>
+          <div style="margin-top:5px;color:#555">Title: <b>Saif Ullah</b></div>
+        </div>
+        <div style="text-align:right;font-size:10.5px;color:#888;font-style:italic;align-self:flex-end;max-width:200px">
+          This is a system generated invoice and does not require a signature.
+        </div>
+      </div>
+      <div style="margin-top:18px;padding-top:14px;border-top:1px solid #e8eaf0;color:#666;font-size:11px;text-align:center">Thank you for your business</div>
+      <div style="margin-top:14px;border-top:2px solid #1a1a2e"></div>
     </div>`;
 
   document.getElementById('inv-view-actions').innerHTML = `
@@ -1770,6 +1780,15 @@ applyTheme(document.documentElement.getAttribute('data-theme') || 'dark');
 // ── Utilities ──────────────────────────────────────────
 function today() { return new Date().toISOString().split('T')[0]; }
 function fmtPKR(n) { return 'PKR '+(parseFloat(n)||0).toLocaleString('en-PK',{minimumFractionDigits:0,maximumFractionDigits:0}); }
+// Format an invoice date as DD-Mon-YY (e.g. 10-Aug-26).
+function fmtInvDate(s) {
+  if (!s) return '';
+  const str = String(s).split('T')[0];
+  const d = new Date(str + 'T12:00:00Z');
+  if (isNaN(d.getTime())) return str;
+  const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()];
+  return `${String(d.getUTCDate()).padStart(2,'0')}-${mon}-${String(d.getUTCFullYear()).slice(-2)}`;
+}
 function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function freqLabel(f,v) {
   const m={monthly:'Monthly',bimonthly:'2 Months',quarterly:'3 Months',every4months:'4 Months',every6months:'6 Months',yearly:'Yearly',custom_days:`${v} Days`,custom_months:`${v} Months`,one_time:'One Time'};
